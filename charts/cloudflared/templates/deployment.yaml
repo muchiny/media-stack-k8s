@@ -38,11 +38,7 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
-            exec:
-              command:
-                - nslookup
-                - "-port=5053"
-                - "cloudflare.com"
-                - "127.0.0.1"
+            tcpSocket:
+              port: 5053
             initialDelaySeconds: 10
             periodSeconds: 30

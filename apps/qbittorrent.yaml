@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/muchini/media-stack-k8s.git
+    repoURL: https://github.com/muchiny/media-stack-k8s.git
     targetRevision: HEAD
     path: charts/qbittorrent
     helm:

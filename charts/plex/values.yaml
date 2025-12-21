@@ -17,7 +17,7 @@ persistence:
     hostPath: /home/muchini/media-stack/docker/plex
     mountPath: /config
   media:
-    hostPath: /home/muchini/media-stack/media
+    hostPath: /media
     mountPath: /media
     readOnly: true
   transcode:

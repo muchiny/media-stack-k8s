@@ -23,7 +23,7 @@ persistence:
     hostPath: /home/muchini/media-stack/torrents
     mountPath: /downloads
   media:
-    hostPath: /home/muchini/media-stack/media
+    hostPath: /media
     mountPath: /media
 
 environment:

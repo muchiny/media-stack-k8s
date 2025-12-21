@@ -1,0 +1,45 @@
+replicaCount: 1
+
+image:
+  repository: lscr.io/linuxserver/qbittorrent
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  webui:
+    type: NodePort
+    port: 8080
+    nodePort: 30080
+  torrent:
+    type: NodePort
+    port: 6881
+    nodePort: 30881
+
+persistence:
+  config:
+    hostPath: /home/muchini/media-stack/docker/qbittorrent
+    mountPath: /config
+  downloads:
+    hostPath: /home/muchini/media-stack/torrents
+    mountPath: /downloads
+  media:
+    hostPath: /home/muchini/media-stack/media
+    mountPath: /media
+
+environment:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: "Europe/Paris"
+  WEBUI_PORT: "8080"
+
+# DNS points to Cloudflared service
+dns:
+  cloudflaredService: "cloudflared"
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: 500m
+  requests:
+    memory: 128Mi
+    cpu: 100m

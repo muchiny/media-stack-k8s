@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "qbittorrent.fullname" . }}
+  labels:
+    {{- include "qbittorrent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "qbittorrent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "qbittorrent.selectorLabels" . | nindent 8 }}
+    spec:
+      # Use default cluster DNS (CoreDNS)
+      dnsPolicy: ClusterFirst
+      initContainers:
+        # Wait for Cloudflared service to be ready
+        - name: wait-for-dns
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Cloudflared DNS service..."
+              until nslookup {{ include "qbittorrent.cloudflaredServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local; do
+                echo "Cloudflared not ready, waiting..."
+                sleep 5
+              done
+              echo "Cloudflared is ready!"
+      containers:
+        - name: qbittorrent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- range $key, $value := .Values.environment }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: webui
+            - containerPort: 6881
+              protocol: TCP
+              name: torrent-tcp
+            - containerPort: 6881
+              protocol: UDP
+              name: torrent-udp
+          volumeMounts:
+            - name: config
+              mountPath: {{ .Values.persistence.config.mountPath }}
+            - name: downloads
+              mountPath: {{ .Values.persistence.downloads.mountPath }}
+            - name: media
+              mountPath: {{ .Values.persistence.media.mountPath }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: config
+          hostPath:
+            path: {{ .Values.persistence.config.hostPath }}
+            type: DirectoryOrCreate
+        - name: downloads
+          hostPath:
+            path: {{ .Values.persistence.downloads.hostPath }}
+            type: DirectoryOrCreate
+        - name: media
+          hostPath:
+            path: {{ .Values.persistence.media.hostPath }}
+            type: Directory

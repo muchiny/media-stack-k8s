@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "plex.fullname" . }}
+  labels:
+    {{- include "plex.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "plex.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "plex.selectorLabels" . | nindent 8 }}
+    spec:
+      hostNetwork: {{ .Values.hostNetwork }}
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: plex
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- range $key, $value := .Values.environment }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          ports:
+            - containerPort: 32400
+              hostPort: 32400
+              protocol: TCP
+              name: plex
+          volumeMounts:
+            - name: config
+              mountPath: {{ .Values.persistence.config.mountPath }}
+            - name: media
+              mountPath: {{ .Values.persistence.media.mountPath }}
+              readOnly: {{ .Values.persistence.media.readOnly }}
+            - name: transcode
+              mountPath: {{ .Values.persistence.transcode.mountPath }}
+            {{- if .Values.gpu.enabled }}
+            - name: dri
+              mountPath: /dev/dri
+            {{- end }}
+          {{- if .Values.gpu.enabled }}
+          securityContext:
+            privileged: true
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /web/index.html
+              port: 32400
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /web/index.html
+              port: 32400
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: config
+          hostPath:
+            path: {{ .Values.persistence.config.hostPath }}
+            type: DirectoryOrCreate
+        - name: media
+          hostPath:
+            path: {{ .Values.persistence.media.hostPath }}
+            type: Directory
+        - name: transcode
+          emptyDir:
+            medium: {{ .Values.persistence.transcode.medium | default "" }}
+        {{- if .Values.gpu.enabled }}
+        - name: dri
+          hostPath:
+            path: /dev/dri
+            type: Directory
+        {{- end }}

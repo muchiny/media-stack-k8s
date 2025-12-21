@@ -1,0 +1,43 @@
+replicaCount: 1
+
+image:
+  repository: lscr.io/linuxserver/plex
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# CRITICAL: hostNetwork required for Plex discovery (DLNA/GDM)
+hostNetwork: true
+
+# Hardware transcoding - requires privileged mode
+gpu:
+  enabled: true
+
+persistence:
+  config:
+    hostPath: /home/muchini/media-stack/docker/plex
+    mountPath: /config
+  media:
+    hostPath: /home/muchini/media-stack/media
+    mountPath: /media
+    readOnly: true
+  transcode:
+    type: emptyDir
+    mountPath: /transcode
+    medium: Memory
+
+environment:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: "Europe/Paris"
+  VERSION: "docker"
+
+resources:
+  limits:
+    memory: 2Gi
+    cpu: 2000m
+  requests:
+    memory: 512Mi
+    cpu: 500m
+
+nodeSelector:
+  kubernetes.io/arch: arm64

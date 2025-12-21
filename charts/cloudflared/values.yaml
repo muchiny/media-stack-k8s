@@ -8,6 +8,8 @@ image:
 service:
   type: ClusterIP
   port: 5053
+  # Fixed IP for CoreDNS forwarding
+  clusterIP: "10.43.48.123"
 
 resources:
   limits:

@@ -6,6 +6,7 @@ metadata:
     {{- include "cloudflared.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
+  clusterIP: {{ .Values.service.clusterIP | default "" | quote }}
   ports:
     - port: {{ .Values.service.port }}
       targetPort: 5053

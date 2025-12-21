@@ -16,7 +16,7 @@ spec:
       labels:
         {{- include "qbittorrent.selectorLabels" . | nindent 8 }}
     spec:
-      # Use default cluster DNS (CoreDNS)
+      # Use default cluster DNS (CoreDNS configured to use Cloudflared)
       dnsPolicy: ClusterFirst
       initContainers:
         # Wait for Cloudflared service to be ready

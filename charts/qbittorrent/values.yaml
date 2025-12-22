@@ -17,10 +17,10 @@ service:
 
 persistence:
   config:
-    hostPath: /home/muchini/media-stack/docker/qbittorrent
+    hostPath: /home/muchini/media-data/config/qbittorrent
     mountPath: /config
   downloads:
-    hostPath: /home/muchini/media-stack/torrents
+    hostPath: /home/muchini/media-data/torrents
     mountPath: /downloads
   media:
     hostPath: /media

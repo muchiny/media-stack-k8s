@@ -1,0 +1,11 @@
+checks:
+  exclude:
+    # Plex requires hostNetwork for DLNA/GDM discovery
+    - host-network
+    # Plex requires privileged mode for hardware transcoding (/dev/dri)
+    - privileged-container
+    - privilege-escalation-container
+    # LinuxServer images handle user permissions via PUID/PGID
+    - run-as-non-root
+    # These containers need to write to their config directories
+    - no-read-only-root-fs

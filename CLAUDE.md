@@ -32,7 +32,7 @@ K3s-based media stack deployed via ArgoCD GitOps on Raspberry Pi 5 (arm64). Uses
 - Cloudflared has fixed ClusterIP (`10.43.48.123`) for CoreDNS integration
 - Plex uses `hostNetwork: true` for DLNA/GDM discovery
 - qBittorrent has init container waiting for Cloudflared DNS
-- All pods use `hostPath` volumes pointing to `/home/muchini/media-stack/`
+- All pods use `hostPath` volumes pointing to `/home/muchini/media-data/`
 
 ## Commands
 
@@ -83,7 +83,7 @@ helm lint charts/qbittorrent
 
 ## Host Paths
 
-All services mount from the Docker-era directory structure:
-- Config: `/home/muchini/media-stack/docker/{service}/`
-- Media: `/home/muchini/media-stack/media/`
-- Torrents: `/home/muchini/media-stack/torrents/`
+All services mount from:
+- Config: `/home/muchini/media-data/config/{service}/`
+- Media: `/media/`
+- Torrents: `/home/muchini/media-data/torrents/`

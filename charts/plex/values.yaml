@@ -14,7 +14,7 @@ gpu:
 
 persistence:
   config:
-    hostPath: /home/muchini/media-stack/docker/plex
+    hostPath: /home/muchini/media-data/config/plex
     mountPath: /config
   media:
     hostPath: /media

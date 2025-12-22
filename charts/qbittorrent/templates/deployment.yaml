@@ -75,9 +75,10 @@ spec:
               httpHeaders:
                 - name: Host
                   value: localhost:8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /
@@ -85,9 +86,10 @@ spec:
               httpHeaders:
                 - name: Host
                   value: localhost:8080
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
+            failureThreshold: 3
       volumes:
         - name: config
           hostPath:

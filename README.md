@@ -4,11 +4,12 @@ Stack média déployée sur K3s avec ArgoCD (GitOps).
 
 ## Services
 
-| Service | Description | Port |
-|---------|-------------|------|
-| Cloudflared | DNS over HTTPS (anti-censure) | ClusterIP 5053 |
-| Plex | Media Server avec transcodage HW | 32400 (hostNetwork) |
-| qBittorrent | Client torrent (anti-seeding) | NodePort 30080 |
+| Service | Description | Port | Namespace |
+|---------|-------------|------|-----------|
+| Cloudflared | DNS over HTTPS (anti-censure) | ClusterIP 5053 | media-stack |
+| Plex | Media Server avec transcodage HW | 32400 (hostNetwork) | media-stack |
+| qBittorrent | Client torrent (anti-seeding) | 8080 (hostPort) | media-stack |
+| Home Assistant | Domotique open source | 8123 (hostNetwork) | home-assistant |
 
 ## Déploiement
 
@@ -24,7 +25,8 @@ kubectl get applications -n argocd -w
 
 - **ArgoCD**: https://192.168.1.51:30443
 - **Plex**: http://192.168.1.51:32400/web
-- **qBittorrent**: http://192.168.1.51:30080
+- **qBittorrent**: http://192.168.1.51:8080
+- **Home Assistant**: http://192.168.1.51:8123
 
 ## Structure
 
@@ -33,6 +35,7 @@ kubectl get applications -n argocd -w
 ├── base/               # Ressources de base (namespace)
 └── charts/             # Helm Charts
     ├── cloudflared/
+    ├── homeassistant/
     ├── plex/
     └── qbittorrent/
 ```

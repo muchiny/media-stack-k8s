@@ -14,24 +14,25 @@ K3s-based media stack deployed via ArgoCD GitOps on Raspberry Pi 5 (arm64). Uses
                     │   watches repo   │
                     └────────┬─────────┘
                              │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-        ┌──────────┐  ┌──────────┐  ┌──────────────┐
-        │Cloudflared│  │   Plex   │  │ qBittorrent  │
-        │ DNS-over- │  │ hostNet  │  │  NodePort    │
-        │  HTTPS    │  │  :32400  │  │   :30080     │
-        └─────┬─────┘  └──────────┘  └──────┬───────┘
-              │                             │
-              │      CoreDNS forwards       │
-              └─────────────────────────────┘
-                  qBittorrent uses secure DNS
+       ┌─────────────┬───────┼───────┬─────────────┐
+       │             │       │       │             │
+       ▼             ▼       ▼       ▼             ▼
+ ┌──────────┐ ┌──────────┐ ┌────┐ ┌──────────┐ ┌─────────────┐
+ │Cloudflared│ │   Plex   │ │qBit│ │  Home    │ │  (future)   │
+ │ DNS-over- │ │ hostNet  │ │:8080│ │Assistant │ │             │
+ │  HTTPS    │ │  :32400  │ │    │ │  :8123   │ │             │
+ └─────┬─────┘ └──────────┘ └────┘ └──────────┘ └─────────────┘
+       │         media-stack         home-assistant
+       │
+       └── CoreDNS forwards DNS queries
 ```
 
 **Key design decisions:**
 - Cloudflared has fixed ClusterIP (`10.43.48.123`) for CoreDNS integration
 - Plex uses `hostNetwork: true` for DLNA/GDM discovery
 - qBittorrent has init container waiting for Cloudflared DNS
+- Home Assistant uses `hostNetwork: true` for device discovery (mDNS/SSDP)
+- Home Assistant runs in separate `home-assistant` namespace
 - All pods use `hostPath` volumes pointing to `/home/muchini/media-data/`
 
 ## Commands
@@ -45,6 +46,7 @@ kubectl get applications -n argocd -w
 
 # Check pods
 kubectl get pods -n media-stack
+kubectl get pods -n home-assistant
 
 # View ArgoCD UI
 # https://192.168.1.51:30443
@@ -53,6 +55,7 @@ kubectl get pods -n media-stack
 argocd app sync cloudflared
 argocd app sync plex
 argocd app sync qbittorrent
+argocd app sync homeassistant
 ```
 
 ## Helm Chart Testing
@@ -62,11 +65,13 @@ argocd app sync qbittorrent
 helm template charts/cloudflared
 helm template charts/plex
 helm template charts/qbittorrent
+helm template charts/homeassistant
 
 # Lint charts
 helm lint charts/cloudflared
 helm lint charts/plex
 helm lint charts/qbittorrent
+helm lint charts/homeassistant
 ```
 
 ## Critical Constraints

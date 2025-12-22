@@ -1,0 +1,35 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/home-assistant/home-assistant
+  tag: "2024.12"
+  pullPolicy: IfNotPresent
+
+# hostNetwork required for device discovery (mDNS, SSDP)
+hostNetwork: true
+
+service:
+  type: ClusterIP
+  port: 8123
+
+persistence:
+  config:
+    hostPath: /home/muchini/media-data/config/homeassistant
+    mountPath: /config
+
+environment:
+  TZ: "Europe/Paris"
+
+# Privileged mode for USB devices (Zigbee/Z-Wave dongles)
+privileged: false
+
+resources:
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+  requests:
+    memory: 256Mi
+    cpu: 100m
+
+nodeSelector:
+  kubernetes.io/arch: arm64

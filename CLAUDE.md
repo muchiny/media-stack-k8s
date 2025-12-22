@@ -53,10 +53,6 @@ kubectl get pods -n media-stack
 argocd app sync cloudflared
 argocd app sync plex
 argocd app sync qbittorrent
-
-# Rollback to Docker (if K3s fails)
-sudo systemctl stop k3s
-cd ~/media-stack/docker && docker compose start
 ```
 
 ## Helm Chart Testing

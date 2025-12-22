@@ -37,9 +37,3 @@ kubectl get applications -n argocd -w
     └── qbittorrent/
 ```
 
-## Rollback vers Docker
-
-```bash
-sudo systemctl stop k3s
-cd ~/media-stack/docker && docker compose start
-```

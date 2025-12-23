@@ -1,42 +1,153 @@
-# Media Stack K8s
+# 🎬 Media Stack K8s
 
-Stack média déployée sur K3s avec ArgoCD (GitOps).
+Stack média déployée sur K3s avec ArgoCD (GitOps) sur Raspberry Pi 5.
 
-## Services
+## 📋 Vue d'ensemble
 
-| Service | Description | Port | Namespace |
-|---------|-------------|------|-----------|
-| Cloudflared | DNS over HTTPS (anti-censure) | ClusterIP 5053 | media-stack |
-| Plex | Media Server avec transcodage HW | 32400 (hostNetwork) | media-stack |
-| qBittorrent | Client torrent (anti-seeding) | 8080 (hostPort) | media-stack |
-| Home Assistant | Domotique open source | 8123 (hostNetwork) | home-assistant |
+```mermaid
+graph TB
+    subgraph "🌐 Internet"
+        DNS[DNS Queries]
+        Users[👤 Utilisateurs]
+    end
 
-## Déploiement
+    subgraph "🖥️ Raspberry Pi 5"
+        subgraph "☸️ K3s Cluster"
+            ArgoCD[🔄 ArgoCD<br/>GitOps Controller]
+
+            subgraph "📦 Namespace: media-stack"
+                CF[🛡️ Cloudflared<br/>DNS-over-HTTPS<br/>:5053]
+                Plex[🎥 Plex<br/>Media Server<br/>:32400]
+                QB[⬇️ qBittorrent<br/>Torrent Client<br/>:8080]
+            end
+
+            subgraph "🏠 Namespace: home-assistant"
+                HA[🏡 Home Assistant<br/>Domotique<br/>:8123]
+            end
+        end
+
+        Storage[(💾 /home/muchini/media-data)]
+    end
+
+    DNS --> CF
+    Users --> Plex
+    Users --> QB
+    Users --> HA
+    ArgoCD --> CF
+    ArgoCD --> Plex
+    ArgoCD --> QB
+    ArgoCD --> HA
+    Plex --> Storage
+    QB --> Storage
+    HA --> Storage
+```
+
+## 🚀 Services
+
+| Service | Description | Port | Namespace | Statut |
+|---------|-------------|------|-----------|--------|
+| 🛡️ Cloudflared | DNS over HTTPS (anti-censure) | ClusterIP 5053 | media-stack | ✅ |
+| 🎥 Plex | Media Server avec transcodage HW | 32400 (hostNetwork) | media-stack | ✅ |
+| ⬇️ qBittorrent | Client torrent (anti-seeding) | 8080 (hostPort) | media-stack | ✅ |
+| 🏡 Home Assistant | Domotique open source | 8123 (hostNetwork) | home-assistant | ✅ |
+
+## 🔧 Déploiement
 
 ```bash
-# Appliquer le root app (App of Apps pattern)
+# 📥 Appliquer le root app (App of Apps pattern)
 kubectl apply -f apps/root-app.yaml
 
-# Suivre le déploiement
+# 👀 Suivre le déploiement
 kubectl get applications -n argocd -w
 ```
 
-## Accès
+## 🌐 Accès
 
-- **ArgoCD**: https://192.168.1.51:30443
-- **Plex**: http://192.168.1.51:32400/web
-- **qBittorrent**: http://192.168.1.51:8080
-- **Home Assistant**: http://192.168.1.51:8123
+| Service | URL |
+|---------|-----|
+| 🔄 ArgoCD | https://192.168.1.51:30443 |
+| 🎥 Plex | http://192.168.1.51:32400/web |
+| ⬇️ qBittorrent | http://192.168.1.51:8080 |
+| 🏡 Home Assistant | http://192.168.1.51:8123 |
 
-## Structure
+## 📁 Structure du projet
+
+```mermaid
+graph LR
+    subgraph "📂 Repository"
+        ROOT[📄 root-app.yaml]
+
+        subgraph "📁 apps/"
+            A1[cloudflared.yaml]
+            A2[plex.yaml]
+            A3[qbittorrent.yaml]
+            A4[homeassistant.yaml]
+        end
+
+        subgraph "📁 charts/"
+            C1[☁️ cloudflared/]
+            C2[🎥 plex/]
+            C3[⬇️ qbittorrent/]
+            C4[🏡 homeassistant/]
+        end
+
+        subgraph "📁 base/"
+            B1[namespace.yaml]
+        end
+    end
+
+    ROOT --> A1
+    ROOT --> A2
+    ROOT --> A3
+    ROOT --> A4
+    A1 --> C1
+    A2 --> C2
+    A3 --> C3
+    A4 --> C4
+```
 
 ```
-├── apps/               # ArgoCD Application manifests
-├── base/               # Ressources de base (namespace)
-└── charts/             # Helm Charts
-    ├── cloudflared/
-    ├── homeassistant/
-    ├── plex/
-    └── qbittorrent/
+📦 media-stack-k8s/
+├── 📁 apps/               # ArgoCD Application manifests
+│   ├── 📄 root-app.yaml   # App of Apps parent
+│   ├── 📄 cloudflared.yaml
+│   ├── 📄 plex.yaml
+│   ├── 📄 qbittorrent.yaml
+│   └── 📄 homeassistant.yaml
+├── 📁 base/               # Ressources de base
+│   └── 📄 namespace.yaml
+└── 📁 charts/             # Helm Charts
+    ├── ☁️ cloudflared/
+    ├── 🎥 plex/
+    ├── ⬇️ qbittorrent/
+    └── 🏡 homeassistant/
 ```
 
+## ⚠️ Contraintes importantes
+
+> 🚫 **NE PAS** activer le seeding dans qBittorrent
+> 🚫 **NE PAS** exposer Cloudflared externellement
+> 🚫 **NE PAS** ajouter les services *arr (Radarr, Sonarr, etc.)
+
+## 📊 Flux de données
+
+```mermaid
+sequenceDiagram
+    participant U as 👤 Utilisateur
+    participant QB as ⬇️ qBittorrent
+    participant CF as 🛡️ Cloudflared
+    participant DNS as 🌐 Cloudflare DNS
+    participant P as 🎥 Plex
+    participant S as 💾 Storage
+
+    U->>QB: Ajoute torrent
+    QB->>CF: Résolution DNS
+    CF->>DNS: DNS-over-HTTPS
+    DNS-->>CF: IP résolue
+    CF-->>QB: Réponse DNS
+    QB->>S: Télécharge fichier
+    S-->>P: Fichier disponible
+    U->>P: Stream média
+    P->>S: Lecture fichier
+    P-->>U: 🎬 Diffusion
+```

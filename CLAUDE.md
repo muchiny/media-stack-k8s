@@ -1,90 +1,193 @@
-# CLAUDE.md
+# 🤖 CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Ce fichier fournit des instructions à Claude Code (claude.ai/code) pour travailler avec ce repository.
 
-## Project Overview
+## 📋 Vue d'ensemble du projet
 
-K3s-based media stack deployed via ArgoCD GitOps on Raspberry Pi 5 (arm64). Uses the **App of Apps** pattern where `apps/root-app.yaml` is the parent application that syncs all child applications.
+Stack média K3s déployée via ArgoCD GitOps sur **Raspberry Pi 5 (arm64)**. Utilise le pattern **App of Apps** où `apps/root-app.yaml` est l'application parente qui synchronise toutes les applications enfants.
 
-## Architecture
+## 🏗️ Architecture
 
+```mermaid
+graph TB
+    subgraph "☁️ GitHub"
+        Repo[(📦 media-stack-k8s<br/>Repository)]
+    end
+
+    subgraph "🖥️ Raspberry Pi 5 - K3s"
+        ArgoCD[🔄 ArgoCD<br/>Port: 30443]
+
+        subgraph "📦 Namespace: media-stack"
+            CF[🛡️ Cloudflared<br/>ClusterIP: 10.43.48.123<br/>Port: 5053]
+            Plex[🎥 Plex<br/>hostNetwork<br/>Port: 32400]
+            QB[⬇️ qBittorrent<br/>hostPort: 8080]
+        end
+
+        subgraph "🏠 Namespace: home-assistant"
+            HA[🏡 Home Assistant<br/>hostNetwork<br/>Port: 8123]
+        end
+
+        CoreDNS[🌐 CoreDNS]
+        Storage[(💾 /home/muchini/media-data)]
+    end
+
+    Repo -->|"GitOps Sync"| ArgoCD
+    ArgoCD -->|"Déploie"| CF
+    ArgoCD -->|"Déploie"| Plex
+    ArgoCD -->|"Déploie"| QB
+    ArgoCD -->|"Déploie"| HA
+    CoreDNS -->|"Forward DNS"| CF
+    Plex --> Storage
+    QB --> Storage
+    HA --> Storage
 ```
-                    ┌──────────────────┐
-                    │  ArgoCD (GitOps) │
-                    │   watches repo   │
-                    └────────┬─────────┘
-                             │
-       ┌─────────────┬───────┼───────┬─────────────┐
-       │             │       │       │             │
-       ▼             ▼       ▼       ▼             ▼
- ┌──────────┐ ┌──────────┐ ┌────┐ ┌──────────┐ ┌─────────────┐
- │Cloudflared│ │   Plex   │ │qBit│ │  Home    │ │  (future)   │
- │ DNS-over- │ │ hostNet  │ │:8080│ │Assistant │ │             │
- │  HTTPS    │ │  :32400  │ │    │ │  :8123   │ │             │
- └─────┬─────┘ └──────────┘ └────┘ └──────────┘ └─────────────┘
-       │         media-stack         home-assistant
-       │
-       └── CoreDNS forwards DNS queries
+
+## 🎯 Décisions de conception clés
+
+```mermaid
+mindmap
+  root((🏗️ Architecture))
+    🛡️ Cloudflared
+      ClusterIP fixe 10.43.48.123
+      Intégration CoreDNS
+      DNS-over-HTTPS
+    🎥 Plex
+      hostNetwork: true
+      Découverte DLNA/GDM
+      privileged pour /dev/dri
+    ⬇️ qBittorrent
+      Init container
+      Attend Cloudflared DNS
+      Anti-seeding
+    🏡 Home Assistant
+      hostNetwork: true
+      mDNS/SSDP discovery
+      Namespace séparé
+    💾 Storage
+      hostPath volumes
+      /home/muchini/media-data/
 ```
 
-**Key design decisions:**
-- Cloudflared has fixed ClusterIP (`10.43.48.123`) for CoreDNS integration
-- Plex uses `hostNetwork: true` for DLNA/GDM discovery
-- qBittorrent has init container waiting for Cloudflared DNS
-- Home Assistant uses `hostNetwork: true` for device discovery (mDNS/SSDP)
-- Home Assistant runs in separate `home-assistant` namespace
-- All pods use `hostPath` volumes pointing to `/home/muchini/media-data/`
+| Composant | Configuration | Raison |
+|-----------|--------------|--------|
+| 🛡️ Cloudflared | ClusterIP fixe `10.43.48.123` | Intégration CoreDNS |
+| 🎥 Plex | `hostNetwork: true` | Découverte DLNA/GDM |
+| ⬇️ qBittorrent | Init container | Attend Cloudflared DNS |
+| 🏡 Home Assistant | `hostNetwork: true` | Découverte mDNS/SSDP |
+| 🏡 Home Assistant | Namespace `home-assistant` | Isolation |
+| 💾 Tous les pods | `hostPath` volumes | Stockage `/home/muchini/media-data/` |
 
-## Commands
+## 🔧 Commandes
+
+### ☸️ Déploiement
 
 ```bash
-# Deploy everything (initial or after repo changes)
+# 📥 Déployer tout (initial ou après changements)
 kubectl apply -f apps/root-app.yaml
 
-# Watch sync status
+# 👀 Surveiller le statut de sync
 kubectl get applications -n argocd -w
 
-# Check pods
+# 📊 Vérifier les pods
 kubectl get pods -n media-stack
 kubectl get pods -n home-assistant
 
-# View ArgoCD UI
+# 🌐 UI ArgoCD
 # https://192.168.1.51:30443
 
-# Force sync a specific app
+# 🔄 Forcer la sync d'une app spécifique
 argocd app sync cloudflared
 argocd app sync plex
 argocd app sync qbittorrent
 argocd app sync homeassistant
 ```
 
-## Helm Chart Testing
+### 🧪 Test des Helm Charts
 
 ```bash
-# Validate chart templates
+# ✅ Valider les templates
 helm template charts/cloudflared
 helm template charts/plex
 helm template charts/qbittorrent
 helm template charts/homeassistant
 
-# Lint charts
+# 🔍 Linter les charts
 helm lint charts/cloudflared
 helm lint charts/plex
 helm lint charts/qbittorrent
 helm lint charts/homeassistant
+
+# 🔒 Kube-linter (sécurité)
+kube-linter lint charts/
 ```
 
-## Critical Constraints
+## ⚠️ Contraintes critiques
 
-1. **DO NOT** enable seeding in qBittorrent configuration
-2. **DO NOT** expose Cloudflared externally (ClusterIP only)
-3. **DO NOT** add *arr services (Radarr, Sonarr, etc.) - intentionally removed
-4. Plex requires `privileged: true` for hardware transcoding via `/dev/dri`
-5. All apps auto-sync with `selfHeal: true` - manual kubectl changes will be reverted
+```mermaid
+flowchart LR
+    subgraph "🚫 INTERDIT"
+        A[❌ Seeding qBittorrent]
+        B[❌ Exposer Cloudflared]
+        C[❌ Ajouter *arr services]
+    end
 
-## Host Paths
+    subgraph "✅ REQUIS"
+        D[✔️ Plex privileged: true]
+        E[✔️ selfHeal: true]
+        F[✔️ hostPath volumes]
+    end
+```
 
-All services mount from:
-- Config: `/home/muchini/media-data/config/{service}/`
-- Media: `/media/`
-- Torrents: `/home/muchini/media-data/torrents/`
+| ⚠️ Règle | Description |
+|---------|-------------|
+| 🚫 **NE PAS** | Activer le seeding dans qBittorrent |
+| 🚫 **NE PAS** | Exposer Cloudflared externellement (ClusterIP only) |
+| 🚫 **NE PAS** | Ajouter les services *arr (Radarr, Sonarr, etc.) - intentionnellement exclus |
+| ✅ **REQUIS** | Plex `privileged: true` pour transcodage HW via `/dev/dri` |
+| ⚠️ **ATTENTION** | Toutes les apps ont `selfHeal: true` - les changements kubectl manuels seront annulés |
+
+## 📂 Chemins des volumes
+
+```mermaid
+graph LR
+    subgraph "💾 /home/muchini/media-data/"
+        Config["📁 config/"]
+        Torrents["📁 torrents/"]
+
+        subgraph "Config Services"
+            CFG1["cloudflared/"]
+            CFG2["plex/"]
+            CFG3["qbittorrent/"]
+            CFG4["homeassistant/"]
+        end
+    end
+
+    Config --> CFG1
+    Config --> CFG2
+    Config --> CFG3
+    Config --> CFG4
+```
+
+| Type | Chemin |
+|------|--------|
+| 📁 Config | `/home/muchini/media-data/config/{service}/` |
+| 🎬 Media | `/media/` |
+| ⬇️ Torrents | `/home/muchini/media-data/torrents/` |
+
+## 🔄 Workflow GitOps
+
+```mermaid
+sequenceDiagram
+    participant Dev as 👨‍💻 Développeur
+    participant GH as ☁️ GitHub
+    participant Argo as 🔄 ArgoCD
+    participant K8s as ☸️ K3s
+
+    Dev->>GH: 📤 git push
+    GH-->>Argo: 🔔 Webhook/Poll
+    Argo->>GH: 📥 Fetch changes
+    Argo->>Argo: 🔍 Compare desired vs actual
+    Argo->>K8s: ⚡ Apply manifests
+    K8s-->>Argo: ✅ Sync complete
+    Note over Argo,K8s: selfHeal: true<br/>Auto-revert manual changes
+```

@@ -18,6 +18,9 @@ spec:
     spec:
       # Use default cluster DNS (CoreDNS configured to use Cloudflared)
       dnsPolicy: ClusterFirst
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
       initContainers:
         # Wait for Cloudflared service to be ready
         - name: wait-for-dns
@@ -43,6 +46,11 @@ spec:
         - name: qbittorrent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             {{- range $key, $value := .Values.environment }}
             - name: {{ $key }}
@@ -66,21 +74,32 @@ spec:
               mountPath: {{ .Values.persistence.downloads.mountPath }}
             - name: media
               mountPath: {{ .Values.persistence.media.mountPath }}
+            - name: session-tmpfs
+              mountPath: /config/qBittorrent/data
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          # Probes disabled temporarily - qBittorrent needs manual password setup first
-          # livenessProbe:
-          #   tcpSocket:
-          #     port: 8080
-          #   initialDelaySeconds: 60
-          #   periodSeconds: 30
-          #   failureThreshold: 5
-          # readinessProbe:
-          #   tcpSocket:
-          #     port: 8080
-          #   initialDelaySeconds: 30
-          #   periodSeconds: 10
-          #   failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            failureThreshold: 30
       volumes:
         - name: config
           hostPath:
@@ -94,3 +113,7 @@ spec:
           hostPath:
             path: {{ .Values.persistence.media.hostPath }}
             type: Directory
+        - name: session-tmpfs
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi

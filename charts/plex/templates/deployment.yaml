@@ -18,6 +18,9 @@ spec:
     spec:
       hostNetwork: {{ .Values.hostNetwork }}
       dnsPolicy: ClusterFirstWithHostNet
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -52,6 +55,10 @@ spec:
           securityContext:
             privileged: true
           {{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -68,6 +75,14 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
+          startupProbe:
+            httpGet:
+              path: /web/index.html
+              port: 32400
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
       volumes:
         - name: config
           hostPath:
@@ -80,6 +95,9 @@ spec:
         - name: transcode
           emptyDir:
             medium: {{ .Values.persistence.transcode.medium | default "" }}
+            {{- if .Values.persistence.transcode.sizeLimit }}
+            sizeLimit: {{ .Values.persistence.transcode.sizeLimit }}
+            {{- end }}
         {{- if .Values.gpu.enabled }}
         - name: dri
           hostPath:

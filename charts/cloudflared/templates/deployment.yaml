@@ -14,10 +14,21 @@ spec:
       labels:
         {{- include "cloudflared.selectorLabels" . | nindent 8 }}
     spec:
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
       containers:
         - name: cloudflared
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           args:
             - proxy-dns
             - --port
@@ -27,6 +38,10 @@ spec:
             {{- range .Values.dns.upstreams }}
             - --upstream
             - {{ . | quote }}
+            {{- end }}
+            {{- if .Values.dns.cache.enabled }}
+            - --max-upstream-conns
+            - {{ .Values.dns.cache.maxUpstreamConns | default "5" | quote }}
             {{- end }}
           ports:
             - containerPort: 5053
@@ -42,3 +57,18 @@ spec:
               port: 5053
             initialDelaySeconds: 10
             periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5053
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket:
+              port: 5053
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            failureThreshold: 12
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]

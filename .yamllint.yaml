@@ -1,4 +1,9 @@
 extends: default
+
+# Ignore Helm templates (contain Go template syntax)
+ignore:
+  - "charts/*/templates/"
+
 rules:
   line-length:
     max: 120
@@ -7,3 +12,6 @@ rules:
   document-start: disable
   truthy:
     check-keys: false
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1

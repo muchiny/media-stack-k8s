@@ -47,10 +47,13 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
-            allowPrivilegeEscalation: false
             capabilities:
+              add:
+                - CHOWN
+                - SETGID
+                - SETUID
               drop:
-                - ALL
+                - NET_RAW
           env:
             {{- range $key, $value := .Values.environment }}
             - name: {{ $key }}

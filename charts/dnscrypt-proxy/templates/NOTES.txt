@@ -1,0 +1,25 @@
+dnscrypt-proxy has been deployed!
+
+Service Details:
+  Name: {{ include "dnscrypt-proxy.fullname" . }}
+  Type: {{ .Values.service.type }}
+  Port: {{ .Values.service.port }}
+  ClusterIP: {{ .Values.service.clusterIP }}
+
+DNS Configuration:
+  This service provides DNS-over-HTTPS (DoH) for secure DNS resolution.
+  It is configured as a ClusterIP service for internal cluster use only.
+
+CoreDNS Integration:
+  To forward DNS queries to dnscrypt-proxy, add this to CoreDNS ConfigMap:
+
+  forward . {{ .Values.service.clusterIP }}:{{ .Values.service.port }}
+
+To verify the deployment:
+  kubectl get pods -l "app.kubernetes.io/name={{ include "dnscrypt-proxy.name" . }}" -n {{ .Release.Namespace }}
+
+To view logs:
+  kubectl logs -f deployment/{{ include "dnscrypt-proxy.fullname" . }} -n {{ .Release.Namespace }}
+
+To test DNS resolution:
+  kubectl run -it --rm dns-test --image=busybox --restart=Never -- nslookup google.com {{ .Values.service.clusterIP }}

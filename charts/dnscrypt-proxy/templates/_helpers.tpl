@@ -26,7 +26,11 @@ Common labels
 */}}
 {{- define "dnscrypt-proxy.labels" -}}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-{{ include "dnscrypt-proxy.selectorLabels" . }}
+app.kubernetes.io/name: {{ include "dnscrypt-proxy.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/component: dns-proxy
+app.kubernetes.io/part-of: media-stack
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 

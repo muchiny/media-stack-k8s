@@ -7,7 +7,7 @@ Helm chart pour déployer **qBittorrent** avec configuration anti-seeding et DNS
 ```mermaid
 graph TB
     subgraph "☸️ Cluster K3s"
-        CF[🛡️ Cloudflared<br/>DNS-over-HTTPS]
+        DNS[🛡️ dnscrypt-proxy<br/>DNS-over-HTTPS]
         QB[⬇️ qBittorrent<br/>Port 8080]
         Init[⏳ Init Container<br/>Attend DNS]
     end
@@ -22,9 +22,9 @@ graph TB
         Trackers[📡 Trackers]
     end
 
-    Init -->|"nslookup"| CF
+    Init -->|"nslookup"| DNS
     Init -->|"OK"| QB
-    QB -->|"DNS"| CF
+    QB -->|"DNS"| DNS
     QB --> Trackers
     QB --> Config & Downloads & Media
 ```
@@ -72,9 +72,9 @@ persistence:
   media:
     hostPath: /media
 
-# DNS via Cloudflared
+# DNS via dnscrypt-proxy
 dns:
-  cloudflaredService: "cloudflared"
+  dnsProxyService: "dnscrypt-proxy"
 
 environment:
   PUID: "1000"
@@ -92,7 +92,7 @@ nodeSelector:
 flowchart TB
     subgraph "📦 Deployment"
         subgraph "⏳ Init Container"
-            Init[busybox<br/>nslookup cloudflared]
+            Init[busybox<br/>nslookup dnscrypt-proxy]
         end
 
         subgraph "🐳 Main Container"
@@ -121,15 +121,15 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant Init as ⏳ Init Container
-    participant CF as 🛡️ Cloudflared
+    participant DNS as 🛡️ dnscrypt-proxy
     participant QB as ⬇️ qBittorrent
 
     loop Toutes les 5 secondes
-        Init->>CF: nslookup google.com
-        CF-->>Init: ❌ Pas prêt
+        Init->>DNS: nslookup google.com
+        DNS-->>Init: ❌ Pas prêt
     end
-    Init->>CF: nslookup google.com
-    CF-->>Init: ✅ Résolu
+    Init->>DNS: nslookup google.com
+    DNS-->>Init: ✅ Résolu
     Init->>QB: 🚀 Démarrer
 ```
 
@@ -169,8 +169,8 @@ mindmap
 | ⚠️ | Description |
 |----|-------------|
 | 🚫 | **Anti-seeding** - Configurer les limites dans WebUI |
-| ⏳ | **Init container** - Attend que Cloudflared soit prêt |
-| 🛡️ | **DNS sécurisé** - Utilise Cloudflared pour DNS-over-HTTPS |
+| ⏳ | **Init container** - Attend que dnscrypt-proxy soit prêt |
+| 🛡️ | **DNS sécurisé** - Utilise dnscrypt-proxy pour DNS-over-HTTPS |
 | 📡 | **NodePort** - Accessible sur `30080` (WebUI) et `30881` (torrent) |
 | 🖥️ | **arm64** - NodeSelector force le déploiement sur Raspberry Pi |
 
@@ -194,6 +194,6 @@ kubectl logs -n media-stack -l app=qbittorrent -f
 kubectl logs -n media-stack -l app=qbittorrent -c wait-for-dns
 
 # 🌐 Accéder à l'interface
-# http://192.168.1.51:30080
+# http://192.168.1.51:8080 (via hostPort)
 # Login par défaut: admin / adminadmin
 ```

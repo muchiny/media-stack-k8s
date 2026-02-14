@@ -7,6 +7,10 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   clusterIP: {{ .Values.service.clusterIP | default "" | quote }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 300
   ports:
     - port: {{ .Values.service.port }}
       targetPort: 5053

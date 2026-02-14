@@ -24,7 +24,17 @@ spec:
         - protocol: UDP
           port: 6881
   egress:
-    # Allow DNS queries to Cloudflared
+    # Allow DNS queries to CoreDNS (kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow DNS queries to Cloudflared (if CoreDNS forwards to it)
     - to:
         - namespaceSelector:
             matchLabels:

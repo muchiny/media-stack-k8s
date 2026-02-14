@@ -15,7 +15,7 @@ updates:
 
   # Docker images in Helm charts
   - package-ecosystem: "docker"
-    directory: "/charts/cloudflared"
+    directory: "/charts/dnscrypt-proxy"
     schedule:
       interval: "weekly"
     commit-message:

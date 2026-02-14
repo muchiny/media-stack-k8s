@@ -39,13 +39,13 @@ metadata:
 ```mermaid
 graph TB
     subgraph "📦 Namespace: media-stack"
-        CF[🛡️ Cloudflared<br/>DNS-over-HTTPS]
+        DNS[🛡️ dnscrypt-proxy<br/>DNS-over-HTTPS]
         PX[🎥 Plex<br/>Media Server]
         QB[⬇️ qBittorrent<br/>Torrent Client]
     end
 
-    CF -.->|"DNS"| PX
-    CF -.->|"DNS"| QB
+    DNS -.->|"DNS"| PX
+    DNS -.->|"DNS"| QB
 ```
 
 ## 🔧 Utilisation

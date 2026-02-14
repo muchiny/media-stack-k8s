@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release
 - qBittorrent deployment with LinuxServer image
 - Anti-seeding configuration
-- Init container waiting for Cloudflared DNS
+- Init container waiting for DNS proxy
 - NodePort services for WebUI (30080) and torrent (30881)
 - Persistent storage for config and downloads
 - tmpfs for session data (reduces SD card wear)
-- NetworkPolicy with Cloudflared DNS egress
+- NetworkPolicy with DNS proxy egress
 - PodDisruptionBudget for high availability
 - Health probes (startup, liveness, readiness)
 - Priority class support (media-high)

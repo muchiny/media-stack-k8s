@@ -19,5 +19,5 @@ Configuration:
 
 Important Notes:
   - Seeding is disabled by design (ratio 0, time 0)
-  - DNS queries are routed through Cloudflared
+  - DNS queries are routed through dnscrypt-proxy (DoH)
   - Session data is stored in tmpfs for privacy

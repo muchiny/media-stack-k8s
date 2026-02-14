@@ -85,7 +85,7 @@ charts/mon-service/
 ## Règles importantes
 
 - **NE PAS** activer le seeding dans qBittorrent
-- **NE PAS** exposer Cloudflared externalement
+- **NE PAS** exposer dnscrypt-proxy externellement
 - **NE PAS** ajouter les services *arr (Radarr, Sonarr, etc.)
 - **TOUJOURS** inclure les ressources (requests/limits)
 - **TOUJOURS** inclure les probes (liveness/readiness/startup)

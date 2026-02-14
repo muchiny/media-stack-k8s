@@ -16,7 +16,7 @@ graph TB
             ArgoCD[🔄 ArgoCD<br/>GitOps Controller]
 
             subgraph "📦 Namespace: media-stack"
-                CF[🛡️ Cloudflared<br/>DNS-over-HTTPS<br/>:5053]
+                CF[🛡️ dnscrypt-proxy<br/>DNS-over-HTTPS<br/>:5053]
                 Plex[🎥 Plex<br/>Media Server<br/>:32400]
                 QB[⬇️ qBittorrent<br/>Torrent Client<br/>:8080]
             end
@@ -39,7 +39,7 @@ graph TB
 
 | Service | Description | Port | Namespace | Statut |
 |---------|-------------|------|-----------|--------|
-| 🛡️ Cloudflared | DNS over HTTPS (anti-censure) | ClusterIP 5053 | media-stack | ✅ |
+| 🛡️ dnscrypt-proxy | DNS over HTTPS (anti-censure) | ClusterIP 5053 | media-stack | ✅ |
 | 🎥 Plex | Media Server avec transcodage HW | 32400 (hostNetwork) | media-stack | ✅ |
 | ⬇️ qBittorrent | Client torrent (anti-seeding) | 8080 (hostPort) | media-stack | ✅ |
 
@@ -69,13 +69,13 @@ graph LR
         ROOT[📄 root-app.yaml]
 
         subgraph "📁 apps/"
-            A1[cloudflared.yaml]
+            A1[dnscrypt-proxy.yaml]
             A2[plex.yaml]
             A3[qbittorrent.yaml]
         end
 
         subgraph "📁 charts/"
-            C1[☁️ cloudflared/]
+            C1[🛡️ dnscrypt-proxy/]
             C2[🎥 plex/]
             C3[⬇️ qbittorrent/]
         end
@@ -97,13 +97,13 @@ graph LR
 📦 media-stack-k8s/
 ├── 📁 apps/               # ArgoCD Application manifests
 │   ├── 📄 root-app.yaml   # App of Apps parent
-│   ├── 📄 cloudflared.yaml
+│   ├── 📄 dnscrypt-proxy.yaml
 │   ├── 📄 plex.yaml
 │   └── 📄 qbittorrent.yaml
 ├── 📁 base/               # Ressources de base
 │   └── 📄 namespace.yaml
 └── 📁 charts/             # Helm Charts
-    ├── ☁️ cloudflared/
+    ├── 🛡️ dnscrypt-proxy/
     ├── 🎥 plex/
     └── ⬇️ qbittorrent/
 ```
@@ -111,7 +111,7 @@ graph LR
 ## ⚠️ Contraintes importantes
 
 > 🚫 **NE PAS** activer le seeding dans qBittorrent
-> 🚫 **NE PAS** exposer Cloudflared externellement
+> 🚫 **NE PAS** exposer dnscrypt-proxy externellement
 > 🚫 **NE PAS** ajouter les services *arr (Radarr, Sonarr, etc.)
 
 ## 📊 Flux de données
@@ -120,7 +120,7 @@ graph LR
 sequenceDiagram
     participant U as 👤 Utilisateur
     participant QB as ⬇️ qBittorrent
-    participant CF as 🛡️ Cloudflared
+    participant CF as 🛡️ dnscrypt-proxy
     participant DNS as 🌐 Cloudflare DNS
     participant P as 🎥 Plex
     participant S as 💾 Storage

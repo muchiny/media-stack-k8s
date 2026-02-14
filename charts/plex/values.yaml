@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: lscr.io/linuxserver/plex
-  tag: "1.42.2"
+  tag: "1.43.0"
   pullPolicy: IfNotPresent
 
 # CRITICAL: hostNetwork required for Plex discovery (DLNA/GDM)
@@ -24,6 +24,7 @@ persistence:
     type: emptyDir
     mountPath: /transcode
     medium: Memory
+    sizeLimit: 256Mi
 
 environment:
   PUID: "1000"
@@ -33,11 +34,18 @@ environment:
 
 resources:
   limits:
-    memory: 2Gi
-    cpu: 2000m
+    memory: 4Gi
+    cpu: 3500m
   requests:
-    memory: 512Mi
-    cpu: 500m
+    memory: 1Gi
+    cpu: 1000m
+
+# Priority class for pod scheduling
+priorityClassName: media-high
 
 nodeSelector:
   kubernetes.io/arch: arm64
+
+service:
+  type: ClusterIP
+  port: 32400

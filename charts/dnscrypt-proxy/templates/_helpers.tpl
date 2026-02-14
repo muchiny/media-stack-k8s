@@ -1,8 +1,14 @@
-{{- define "cloudflared.name" -}}
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "dnscrypt-proxy.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "cloudflared.fullname" -}}
+{{/*
+Create a default fully qualified app name.
+*/}}
+{{- define "dnscrypt-proxy.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -15,17 +21,19 @@
 {{- end }}
 {{- end }}
 
-{{- define "cloudflared.labels" -}}
+{{/*
+Common labels
+*/}}
+{{- define "dnscrypt-proxy.labels" -}}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-app.kubernetes.io/name: {{ include "cloudflared.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-app.kubernetes.io/component: dns
-app.kubernetes.io/part-of: media-stack
+{{ include "dnscrypt-proxy.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{- define "cloudflared.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "cloudflared.name" . }}
+{{/*
+Selector labels
+*/}}
+{{- define "dnscrypt-proxy.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "dnscrypt-proxy.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

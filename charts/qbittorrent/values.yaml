@@ -32,7 +32,7 @@ environment:
   TZ: Europe/Paris
   WEBUI_PORT: "8080"
 dns:
-  cloudflaredService: cloudflared
+  dnsProxyService: dnscrypt-proxy
 resources:
   limits:
     memory: 1Gi

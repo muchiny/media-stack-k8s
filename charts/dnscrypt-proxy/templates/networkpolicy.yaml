@@ -1,0 +1,39 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "dnscrypt-proxy.fullname" . }}
+  labels:
+    {{- include "dnscrypt-proxy.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "dnscrypt-proxy.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow DNS queries from all pods in cluster
+    - ports:
+        - protocol: UDP
+          port: 5053
+        - protocol: TCP
+          port: 5053
+  egress:
+    # Allow HTTPS to Cloudflare DoH (1.1.1.1, 1.0.0.1)
+    - to:
+        - ipBlock:
+            cidr: 1.1.1.1/32
+        - ipBlock:
+            cidr: 1.0.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow DNS for bootstrap
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: UDP
+          port: 53
+{{- end }}

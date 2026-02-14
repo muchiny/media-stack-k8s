@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
-  repository: cloudflare/cloudflared
-  tag: 2026.2.0
+  repository: klutchell/dnscrypt-proxy
+  tag: "2.1.5"
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
@@ -14,13 +14,20 @@ resources:
   requests:
     memory: 32Mi
     cpu: 50m
-dns:
-  upstreams:
-  - https://1.0.0.1/dns-query
-  - https://1.0.0.1/dns-query
-  cache:
-    enabled: true
-    maxUpstreamConns: 5
+config:
+  # Use Cloudflare DoH
+  serverNames:
+    - cloudflare
+  listenAddresses:
+    - "0.0.0.0:5053"
+  maxClients: 250
+  ipv6Servers: false
+  dnscrypt: false
+  doh: true
+  cache: true
+  cacheSize: 4096
+  cacheMinTTL: 2400
+  cacheMaxTTL: 86400
 priorityClassName: media-critical
 nodeSelector:
   kubernetes.io/arch: arm64

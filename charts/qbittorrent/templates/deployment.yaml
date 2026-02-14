@@ -16,7 +16,7 @@ spec:
       labels:
         {{- include "qbittorrent.selectorLabels" . | nindent 8 }}
     spec:
-      # Use default cluster DNS (CoreDNS configured to use Cloudflared)
+      # Use default cluster DNS (CoreDNS configured to use dnscrypt-proxy)
       dnsPolicy: ClusterFirst
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}
@@ -29,7 +29,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       initContainers:
-        # Wait for Cloudflared service to be ready
+        # Wait for DNS proxy service to be ready
         - name: wait-for-dns
           image: "{{ .Values.initContainer.image.repository }}:{{ .Values.initContainer.image.tag }}"
           resources:
@@ -43,12 +43,12 @@ spec:
             - sh
             - -c
             - |
-              echo "Waiting for Cloudflared DNS service..."
-              until nslookup {{ include "qbittorrent.cloudflaredServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local; do
-                echo "Cloudflared not ready, waiting..."
+              echo "Waiting for DNS proxy service..."
+              until nslookup {{ include "qbittorrent.dnsProxyServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local; do
+                echo "DNS proxy not ready, waiting..."
                 sleep 5
               done
-              echo "Cloudflared is ready!"
+              echo "DNS proxy is ready!"
       containers:
         - name: qbittorrent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

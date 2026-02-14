@@ -1,24 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "cloudflared.fullname" . }}
+  name: {{ include "dnscrypt-proxy.fullname" . }}
   labels:
-    {{- include "cloudflared.labels" . | nindent 4 }}
+    {{- include "dnscrypt-proxy.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "cloudflared.selectorLabels" . | nindent 6 }}
+      {{- include "dnscrypt-proxy.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "cloudflared.selectorLabels" . | nindent 8 }}
+        {{- include "dnscrypt-proxy.selectorLabels" . | nindent 8 }}
     spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}
       {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
-        - name: cloudflared
+        - name: dnscrypt-proxy
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
@@ -29,20 +33,6 @@ spec:
             capabilities:
               drop:
                 - ALL
-          args:
-            - proxy-dns
-            - --port
-            - "5053"
-            - --address
-            - "0.0.0.0"
-            {{- range .Values.dns.upstreams }}
-            - --upstream
-            - {{ . | quote }}
-            {{- end }}
-            {{- if .Values.dns.cache.enabled }}
-            - --max-upstream-conns
-            - {{ .Values.dns.cache.maxUpstreamConns | default "5" | quote }}
-            {{- end }}
           ports:
             - containerPort: 5053
               protocol: UDP
@@ -50,6 +40,10 @@ spec:
             - containerPort: 5053
               protocol: TCP
               name: dns-tcp
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -72,3 +66,7 @@ spec:
             preStop:
               exec:
                 command: ["/bin/sh", "-c", "sleep 5"]
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "dnscrypt-proxy.fullname" . }}

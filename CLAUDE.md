@@ -13,7 +13,7 @@ media-stack-k8s/
 ├── 📂 apps/                    # Applications ArgoCD
 │   ├── root-app.yaml           # App parente (point d'entrée)
 │   ├── namespace.yaml          # Namespace media-stack
-│   ├── cloudflared.yaml        # App Cloudflared
+│   ├── dnscrypt-proxy.yaml        # App dnscrypt-proxy
 │   ├── plex.yaml               # App Plex
 │   ├── qbittorrent.yaml        # App qBittorrent
 │   ├── priority-classes.yaml   # Classes de priorité
@@ -21,7 +21,7 @@ media-stack-k8s/
 ├── 📂 base/                    # Ressources K8s de base
 │   └── namespace.yaml          # Namespace media-stack
 ├── 📂 charts/                  # Helm Charts
-│   ├── cloudflared/
+│   ├── dnscrypt-proxy/
 │   ├── plex/
 │   └── qbittorrent/
 ├── 📂 .github/workflows/       # CI/CD GitHub Actions
@@ -43,7 +43,7 @@ graph TB
         ArgoCD[🔄 ArgoCD<br/>Port: 30443]
 
         subgraph "📦 Namespace: media-stack"
-            CF[🛡️ Cloudflared<br/>ClusterIP: 10.43.48.123<br/>Port: 5053]
+            CF[🛡️ dnscrypt-proxy<br/>ClusterIP: 10.43.48.123<br/>Port: 5053]
             Plex[🎥 Plex<br/>hostNetwork<br/>Port: 32400]
             QB[⬇️ qBittorrent<br/>hostPort: 8080]
         end
@@ -66,7 +66,7 @@ graph TB
 ```mermaid
 mindmap
   root((🏗️ Architecture))
-    🛡️ Cloudflared
+    🛡️ dnscrypt-proxy
       ClusterIP fixe 10.43.48.123
       Intégration CoreDNS
       DNS-over-HTTPS
@@ -76,7 +76,7 @@ mindmap
       privileged pour /dev/dri
     ⬇️ qBittorrent
       Init container
-      Attend Cloudflared DNS
+      Attend dnscrypt-proxy DNS
       Anti-seeding
     💾 Storage
       hostPath volumes
@@ -85,9 +85,9 @@ mindmap
 
 | Composant | Configuration | Raison |
 |-----------|--------------|--------|
-| 🛡️ Cloudflared | ClusterIP fixe `10.43.48.123` | Intégration CoreDNS |
+| 🛡️ dnscrypt-proxy | ClusterIP fixe `10.43.48.123` | Intégration CoreDNS |
 | 🎥 Plex | `hostNetwork: true` | Découverte DLNA/GDM |
-| ⬇️ qBittorrent | Init container | Attend Cloudflared DNS |
+| ⬇️ qBittorrent | Init container | Attend dnscrypt-proxy DNS |
 | 💾 Tous les pods | `hostPath` volumes | Stockage `/home/muchini/media-data/` |
 
 ## 🔧 Commandes
@@ -108,7 +108,7 @@ kubectl get pods -n media-stack
 # https://192.168.1.51:30443
 
 # 🔄 Forcer la sync d'une app spécifique
-argocd app sync cloudflared
+argocd app sync dnscrypt-proxy
 argocd app sync plex
 argocd app sync qbittorrent
 ```
@@ -117,12 +117,12 @@ argocd app sync qbittorrent
 
 ```bash
 # ✅ Valider les templates
-helm template charts/cloudflared
+helm template charts/dnscrypt-proxy
 helm template charts/plex
 helm template charts/qbittorrent
 
 # 🔍 Linter les charts
-helm lint charts/cloudflared
+helm lint charts/dnscrypt-proxy
 helm lint charts/plex
 helm lint charts/qbittorrent
 
@@ -133,7 +133,7 @@ yamllint -c .yamllint.yaml .
 kube-linter lint charts/
 
 # ✅ Kubeconform (validation schémas K8s)
-helm template charts/cloudflared | kubeconform -strict -summary
+helm template charts/dnscrypt-proxy | kubeconform -strict -summary
 ```
 
 ### 🔄 CI/CD GitHub Actions
@@ -173,7 +173,7 @@ Définies dans `apps/priority-classes.yaml` pour gérer l'éviction des pods:
 
 | Classe | Valeur | Services |
 |--------|--------|----------|
-| 🔴 `media-critical` | 1,000,000 | Cloudflared (DNS) |
+| 🔴 `media-critical` | 1,000,000 | dnscrypt-proxy (DNS) |
 | 🟠 `media-high` | 900,000 | Plex, qBittorrent |
 | 🟢 `media-normal` | 800,000 | (Réservé) |
 
@@ -196,7 +196,7 @@ Chaque chart inclut un PDB (`templates/pdb.yaml`) avec `minAvailable: 1` pour ga
 flowchart LR
     subgraph "🚫 INTERDIT"
         A[❌ Seeding qBittorrent]
-        B[❌ Exposer Cloudflared]
+        B[❌ Exposer dnscrypt-proxy]
         C[❌ Ajouter *arr services]
     end
 
@@ -210,7 +210,7 @@ flowchart LR
 | ⚠️ Règle | Description |
 |---------|-------------|
 | 🚫 **NE PAS** | Activer le seeding dans qBittorrent |
-| 🚫 **NE PAS** | Exposer Cloudflared externellement (ClusterIP only) |
+| 🚫 **NE PAS** | Exposer dnscrypt-proxy externellement (ClusterIP only) |
 | 🚫 **NE PAS** | Ajouter les services *arr (Radarr, Sonarr, etc.) - intentionnellement exclus |
 | ✅ **REQUIS** | Plex `privileged: true` pour transcodage HW via `/dev/dri` |
 | ⚠️ **ATTENTION** | Toutes les apps ont `selfHeal: true` - les changements kubectl manuels seront annulés |
@@ -224,7 +224,7 @@ graph LR
         Torrents["📁 torrents/"]
 
         subgraph "Config Services"
-            CFG1["cloudflared/"]
+            CFG1["dnscrypt-proxy/"]
             CFG2["plex/"]
             CFG3["qbittorrent/"]
         end

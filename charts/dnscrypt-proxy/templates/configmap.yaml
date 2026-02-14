@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dnscrypt-proxy.fullname" . }}
+  labels:
+    {{- include "dnscrypt-proxy.labels" . | nindent 4 }}
+data:
+  dnscrypt-proxy.toml: |
+    # Listen on all interfaces, port 5053
+    listen_addresses = {{ .Values.config.listenAddresses | toJson }}
+
+    # Maximum number of simultaneous client connections
+    max_clients = {{ .Values.config.maxClients }}
+
+    # Use IPv6 servers
+    ipv6_servers = {{ .Values.config.ipv6Servers }}
+
+    # Use DNSCrypt servers
+    dnscrypt_servers = {{ .Values.config.dnscrypt }}
+
+    # Use DNS-over-HTTPS servers
+    doh_servers = {{ .Values.config.doh }}
+
+    # Server must support DNSSEC
+    require_dnssec = false
+
+    # Server must not log queries
+    require_nolog = true
+
+    # Server must not filter
+    require_nofilter = true
+
+    # Use Cloudflare
+    server_names = {{ .Values.config.serverNames | toJson }}
+
+    # Cache
+    cache = {{ .Values.config.cache }}
+    cache_size = {{ .Values.config.cacheSize }}
+    cache_min_ttl = {{ .Values.config.cacheMinTTL }}
+    cache_max_ttl = {{ .Values.config.cacheMaxTTL }}
+
+    # Cloudflare DoH resolvers
+    [static]
+      [static.'cloudflare']
+      stamp = 'sdns://AgcAAAAAAAAABzEuMC4wLjEAEmRucy5jbG91ZGZsYXJlLmNvbQovZG5zLXF1ZXJ5'

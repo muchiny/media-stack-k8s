@@ -1,18 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cloudflared
+  name: dnscrypt-proxy
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
     # ArgoCD Image Updater
-    argocd-image-updater.argoproj.io/image-list: cloudflared=cloudflare/cloudflared
-    argocd-image-updater.argoproj.io/cloudflared.update-strategy: semver
-    # Block 2026.x.x+ (dns-proxy removed in 2026.2.0)
-    argocd-image-updater.argoproj.io/cloudflared.semver-constraint: "<2026.0.0"
-    argocd-image-updater.argoproj.io/cloudflared.allow-tags: regexp:^[0-9]+\.[0-9]+\.[0-9]+$
-    argocd-image-updater.argoproj.io/cloudflared.helm.image-name: image.repository
-    argocd-image-updater.argoproj.io/cloudflared.helm.image-tag: image.tag
+    argocd-image-updater.argoproj.io/image-list: dnscrypt=klutchell/dnscrypt-proxy
+    argocd-image-updater.argoproj.io/dnscrypt.update-strategy: semver
+    argocd-image-updater.argoproj.io/dnscrypt.semver-constraint: "*"
+    argocd-image-updater.argoproj.io/dnscrypt.allow-tags: regexp:^[0-9]+\.[0-9]+\.[0-9]+$
+    argocd-image-updater.argoproj.io/dnscrypt.helm.image-name: image.repository
+    argocd-image-updater.argoproj.io/dnscrypt.helm.image-tag: image.tag
     argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/git-creds
     argocd-image-updater.argoproj.io/write-back-target: helmvalues:values.yaml
     argocd-image-updater.argoproj.io/git-branch: main
@@ -21,7 +20,7 @@ spec:
   source:
     repoURL: https://github.com/muchiny/media-stack-k8s.git
     targetRevision: HEAD
-    path: charts/cloudflared
+    path: charts/dnscrypt-proxy
     helm:
       releaseName: media
       valueFiles:

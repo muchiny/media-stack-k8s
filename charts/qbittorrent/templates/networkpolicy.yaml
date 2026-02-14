@@ -34,7 +34,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Allow DNS queries to Cloudflared (if CoreDNS forwards to it)
+    # Allow DNS queries to dnscrypt-proxy (if CoreDNS forwards to it)
     - to:
         - namespaceSelector:
             matchLabels:

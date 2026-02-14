@@ -30,6 +30,6 @@ app.kubernetes.io/name: {{ include "qbittorrent.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{- define "qbittorrent.cloudflaredServiceName" -}}
-{{- printf "%s-%s" .Release.Name .Values.dns.cloudflaredService }}
+{{- define "qbittorrent.dnsProxyServiceName" -}}
+{{- printf "%s-%s" .Release.Name .Values.dns.dnsProxyService }}
 {{- end }}

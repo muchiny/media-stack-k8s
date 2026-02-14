@@ -21,7 +21,8 @@ resources:
 
 dns:
   upstreams:
-    - "https://1.1.1.1/dns-query"
+    # Using 1.0.0.1 instead of 1.1.1.1 (Livebox Orange intercepts 1.1.1.1)
+    - "https://1.0.0.1/dns-query"
     - "https://1.0.0.1/dns-query"
   cache:
     enabled: true

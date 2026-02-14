@@ -1,16 +1,12 @@
 replicaCount: 1
-
 image:
   repository: cloudflare/cloudflared
-  tag: "2025.11.1"
+  tag: 2026.2.0
   pullPolicy: IfNotPresent
-
 service:
   type: ClusterIP
   port: 5053
-  # Fixed IP for CoreDNS forwarding
-  clusterIP: "10.43.48.123"
-
+  clusterIP: 10.43.48.123
 resources:
   limits:
     memory: 64Mi
@@ -18,22 +14,15 @@ resources:
   requests:
     memory: 32Mi
     cpu: 50m
-
 dns:
   upstreams:
-    # Using 1.0.0.1 instead of 1.1.1.1 (Livebox Orange intercepts 1.1.1.1)
-    - "https://1.0.0.1/dns-query"
-    - "https://1.0.0.1/dns-query"
+  - https://1.0.0.1/dns-query
+  - https://1.0.0.1/dns-query
   cache:
     enabled: true
     maxUpstreamConns: 5
-
-# Priority class for pod scheduling (critical for DNS)
 priorityClassName: media-critical
-
 nodeSelector:
   kubernetes.io/arch: arm64
-
-# Network policy for traffic control
 networkPolicy:
   enabled: true

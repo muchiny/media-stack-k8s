@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/home-assistant/home-assistant
-  tag: "2024.12"
+  tag: "2025.2.1"
   pullPolicy: IfNotPresent
 
 # hostNetwork required for device discovery (mDNS, SSDP)
@@ -26,10 +26,13 @@ privileged: false
 resources:
   limits:
     memory: 1Gi
-    cpu: 1000m
+    cpu: 500m
   requests:
-    memory: 256Mi
+    memory: 384Mi
     cpu: 100m
+
+# Priority class for pod scheduling
+priorityClassName: media-normal
 
 nodeSelector:
   kubernetes.io/arch: arm64

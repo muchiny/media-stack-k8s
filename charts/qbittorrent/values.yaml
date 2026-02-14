@@ -43,3 +43,9 @@ resources:
   requests:
     memory: 256Mi
     cpu: 100m
+
+# Priority class for pod scheduling
+priorityClassName: media-high
+
+nodeSelector:
+  kubernetes.io/arch: arm64

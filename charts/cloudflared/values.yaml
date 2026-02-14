@@ -23,3 +23,12 @@ dns:
   upstreams:
     - "https://1.1.1.1/dns-query"
     - "https://1.0.0.1/dns-query"
+  cache:
+    enabled: true
+    maxUpstreamConns: 5
+
+# Priority class for pod scheduling (critical for DNS)
+priorityClassName: media-critical
+
+nodeSelector:
+  kubernetes.io/arch: arm64

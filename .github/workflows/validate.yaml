@@ -42,9 +42,17 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v4
 
+      - name: Cache kubeconform
+        uses: actions/cache@v4
+        id: cache-kubeconform
+        with:
+          path: /usr/local/bin/kubeconform
+          key: kubeconform-v0.6.4
+
       - name: Install kubeconform
+        if: steps.cache-kubeconform.outputs.cache-hit != 'true'
         run: |
-          wget -q https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          wget -q https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz
           tar xf kubeconform-linux-amd64.tar.gz
           sudo mv kubeconform /usr/local/bin/
 

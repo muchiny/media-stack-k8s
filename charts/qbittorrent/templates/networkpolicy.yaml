@@ -1,0 +1,50 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "qbittorrent.fullname" . }}
+  labels:
+    {{- include "qbittorrent.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "qbittorrent.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow WebUI access from local network
+    - ports:
+        - protocol: TCP
+          port: 8080
+    # Allow torrent connections
+    - ports:
+        - protocol: TCP
+          port: 6881
+        - protocol: UDP
+          port: 6881
+  egress:
+    # Allow DNS queries to Cloudflared
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+      ports:
+        - protocol: UDP
+          port: 5053
+        - protocol: TCP
+          port: 5053
+    # Allow torrent traffic (HTTP/HTTPS trackers and peers)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 6881
+        - protocol: UDP
+          port: 6881
+{{- end }}

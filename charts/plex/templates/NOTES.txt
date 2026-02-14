@@ -1,0 +1,28 @@
+Plex Media Server has been deployed!
+
+Service Details:
+  Name: {{ include "plex.fullname" . }}
+  Port: {{ .Values.service.port }}
+{{- if .Values.hostNetwork }}
+  Network Mode: hostNetwork (required for DLNA/GDM discovery)
+{{- end }}
+
+Access Plex:
+  URL: http://<node-ip>:32400/web
+
+To verify the deployment:
+  kubectl get pods -l "app.kubernetes.io/name={{ include "plex.name" . }}" -n {{ .Release.Namespace }}
+
+To view logs:
+  kubectl logs -f deployment/{{ include "plex.fullname" . }} -n {{ .Release.Namespace }}
+
+{{- if .Values.gpu.enabled }}
+
+Hardware Transcoding:
+  GPU access is enabled via /dev/dri
+  The container runs in privileged mode for GPU access
+{{- end }}
+
+Configuration:
+  Config path: {{ .Values.persistence.config.hostPath }}
+  Media path: {{ .Values.persistence.media.hostPath }}

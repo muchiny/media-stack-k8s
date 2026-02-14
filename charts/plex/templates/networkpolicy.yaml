@@ -1,0 +1,39 @@
+{{- if .Values.networkPolicy.enabled }}
+# Note: NetworkPolicy has limited effect when hostNetwork: true is enabled
+# This policy applies when hostNetwork is disabled
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "plex.fullname" . }}
+  labels:
+    {{- include "plex.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "plex.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Plex clients
+    - ports:
+        - protocol: TCP
+          port: 32400
+    # Allow DLNA/GDM discovery
+    - ports:
+        - protocol: UDP
+          port: 1900
+        - protocol: UDP
+          port: 32410
+        - protocol: UDP
+          port: 32412
+        - protocol: UDP
+          port: 32413
+        - protocol: UDP
+          port: 32414
+  egress:
+    # Allow all outbound (Plex needs to reach plex.tv and media sources)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+{{- end }}

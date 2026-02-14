@@ -1,0 +1,45 @@
+version: 2
+updates:
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    open-pull-requests-limit: 5
+
+  # Docker images in Helm charts
+  - package-ecosystem: "docker"
+    directory: "/charts/cloudflared"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/charts/plex"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/charts/qbittorrent"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+      - "docker"

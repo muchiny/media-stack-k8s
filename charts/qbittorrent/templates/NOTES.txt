@@ -1,0 +1,23 @@
+qBittorrent has been deployed!
+
+Service Details:
+  WebUI: http://<node-ip>:{{ .Values.service.webui.nodePort }}
+  Torrent Port: {{ .Values.service.torrent.port }}
+
+To verify the deployment:
+  kubectl get pods -l "app.kubernetes.io/name={{ include "qbittorrent.name" . }}" -n {{ .Release.Namespace }}
+
+To view logs:
+  kubectl logs -f deployment/{{ include "qbittorrent.fullname" . }} -n {{ .Release.Namespace }}
+
+Default Credentials:
+  Check container logs for temporary admin password on first run
+
+Configuration:
+  Config path: {{ .Values.persistence.config.hostPath }}
+  Downloads path: {{ .Values.persistence.downloads.hostPath }}
+
+Important Notes:
+  - Seeding is disabled by design (ratio 0, time 0)
+  - DNS queries are routed through Cloudflared
+  - Session data is stored in tmpfs for privacy

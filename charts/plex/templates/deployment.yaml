@@ -25,6 +25,9 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: plex
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

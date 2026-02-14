@@ -49,3 +49,7 @@ nodeSelector:
 service:
   type: ClusterIP
   port: 32400
+
+# Network policy (limited effect with hostNetwork: true)
+networkPolicy:
+  enabled: true

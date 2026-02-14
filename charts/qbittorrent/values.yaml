@@ -49,3 +49,7 @@ priorityClassName: media-high
 
 nodeSelector:
   kubernetes.io/arch: arm64
+
+# Network policy for traffic control
+networkPolicy:
+  enabled: true

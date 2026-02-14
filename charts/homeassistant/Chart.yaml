@@ -3,4 +3,4 @@ name: homeassistant
 description: Home Assistant - Open source home automation
 type: application
 version: 1.0.0
-appVersion: "2024.12"
+appVersion: "2025.2.1"

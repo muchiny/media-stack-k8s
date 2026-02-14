@@ -2,4 +2,4 @@ apiVersion: v2
 name: plex
 description: Plex Media Server with hardware transcoding
 version: 1.0.0
-appVersion: "latest"
+appVersion: "1.43.0"

@@ -6,6 +6,34 @@ Ce fichier fournit des instructions à Claude Code (claude.ai/code) pour travail
 
 Stack média K3s déployée via ArgoCD GitOps sur **Raspberry Pi 5 (arm64)**. Utilise le pattern **App of Apps** où `apps/root-app.yaml` est l'application parente qui synchronise toutes les applications enfants.
 
+## 📂 Structure du projet
+
+```
+media-stack-k8s/
+├── 📂 apps/                    # Applications ArgoCD
+│   ├── root-app.yaml           # App parente (point d'entrée)
+│   ├── namespace.yaml          # Namespace media-stack
+│   ├── cloudflared.yaml        # App Cloudflared
+│   ├── plex.yaml               # App Plex
+│   ├── qbittorrent.yaml        # App qBittorrent
+│   ├── homeassistant.yaml      # App Home Assistant
+│   ├── priority-classes.yaml   # Classes de priorité
+│   └── resource-quota.yaml     # Quotas de ressources
+├── 📂 base/                    # Ressources K8s de base
+│   ├── namespace.yaml          # Namespace media-stack
+│   └── namespace-home-assistant.yaml
+├── 📂 charts/                  # Helm Charts
+│   ├── cloudflared/
+│   ├── plex/
+│   ├── qbittorrent/
+│   └── homeassistant/
+├── 📂 .github/workflows/       # CI/CD GitHub Actions
+│   └── validate.yaml           # Pipeline de validation
+├── .yamllint.yaml              # Config yamllint
+├── .kube-linter.yaml           # Config kube-linter
+└── CLAUDE.md                   # Ce fichier
+```
+
 ## 🏗️ Architecture
 
 ```mermaid
@@ -102,7 +130,7 @@ argocd app sync qbittorrent
 argocd app sync homeassistant
 ```
 
-### 🧪 Test des Helm Charts
+### 🧪 Test des Helm Charts (local)
 
 ```bash
 # ✅ Valider les templates
@@ -117,9 +145,69 @@ helm lint charts/plex
 helm lint charts/qbittorrent
 helm lint charts/homeassistant
 
+# 📝 YAML Lint
+yamllint -c .yamllint.yaml .
+
 # 🔒 Kube-linter (sécurité)
 kube-linter lint charts/
+
+# ✅ Kubeconform (validation schémas K8s)
+helm template charts/cloudflared | kubeconform -strict -summary
 ```
+
+### 🔄 CI/CD GitHub Actions
+
+Le pipeline `.github/workflows/validate.yaml` s'exécute sur chaque push/PR et inclut:
+
+```mermaid
+graph LR
+    subgraph "🔍 Lint"
+        YL[📝 YAML Lint]
+        HL[📦 Helm Lint]
+        KL[🔒 Kube-linter]
+    end
+
+    subgraph "✅ Validate"
+        KC[📋 Kubeconform<br/>Schémas K8s]
+    end
+
+    subgraph "🛡️ Security"
+        TR[🔍 Trivy IaC]
+        KS[🛡️ Kubescape<br/>NSA/MITRE]
+        CH[✅ Checkov]
+    end
+```
+
+| Job | Outils | Description |
+|-----|--------|-------------|
+| 🔍 Lint | yamllint, helm lint, kube-linter | Validation syntaxe et bonnes pratiques |
+| ✅ Validate | kubeconform | Validation schémas Kubernetes |
+| 🛡️ Security | Trivy, Kubescape, Checkov | Scan sécurité IaC |
+
+## 📊 Gouvernance des ressources
+
+### 🎯 Priority Classes
+
+Définies dans `apps/priority-classes.yaml` pour gérer l'éviction des pods:
+
+| Classe | Valeur | Services |
+|--------|--------|----------|
+| 🔴 `media-critical` | 1,000,000 | Cloudflared (DNS) |
+| 🟠 `media-high` | 900,000 | Plex, qBittorrent |
+| 🟢 `media-normal` | 800,000 | Home Assistant |
+
+### 📏 Resource Quotas
+
+Définis dans `apps/resource-quota.yaml` pour le namespace `media-stack`:
+
+| Ressource | Requests | Limits |
+|-----------|----------|--------|
+| CPU | 4 cores | 6 cores |
+| Memory | 6 Gi | 8 Gi |
+
+### 🛡️ PodDisruptionBudgets
+
+Chaque chart inclut un PDB (`templates/pdb.yaml`) avec `minAvailable: 1` pour garantir la disponibilité pendant les maintenances.
 
 ## ⚠️ Contraintes critiques
 

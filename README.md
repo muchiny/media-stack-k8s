@@ -115,7 +115,8 @@ graph LR
 │   ├── 📄 qbittorrent.yaml
 │   └── 📄 homeassistant.yaml
 ├── 📁 base/               # Ressources de base
-│   └── 📄 namespace.yaml
+│   ├── 📄 namespace.yaml
+│   └── 📄 namespace-home-assistant.yaml
 └── 📁 charts/             # Helm Charts
     ├── ☁️ cloudflared/
     ├── 🎥 plex/

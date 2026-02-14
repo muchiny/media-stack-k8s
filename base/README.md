@@ -8,16 +8,13 @@ Ce dossier contient les **ressources Kubernetes fondamentales** partagées par t
 graph LR
     subgraph "📂 base/"
         NS[🏷️ namespace.yaml]
-        NSHA[🏷️ namespace-home-assistant.yaml]
     end
 
     subgraph "☸️ Cluster K3s"
         MediaStack[📦 Namespace<br/>media-stack]
-        HAStack[🏠 Namespace<br/>home-assistant]
     end
 
     NS -->|"crée"| MediaStack
-    NSHA -->|"crée"| HAStack
 ```
 
 ## 📄 Fichiers
@@ -25,7 +22,6 @@ graph LR
 | Fichier | Type | Description |
 |---------|------|-------------|
 | 🏷️ `namespace.yaml` | Namespace | Définit le namespace `media-stack` |
-| 🏷️ `namespace-home-assistant.yaml` | Namespace | Définit le namespace `home-assistant` |
 
 ## 🏷️ Namespace media-stack
 
@@ -50,22 +46,6 @@ graph TB
 
     CF -.->|"DNS"| PX
     CF -.->|"DNS"| QB
-```
-
-## 🏠 Namespace home-assistant
-
-Le namespace `home-assistant` est défini dans `namespace-home-assistant.yaml` et géré via GitOps. Il est séparé car Home Assistant nécessite une **isolation** pour:
-- Sa propre configuration réseau (`hostNetwork`)
-- Ses intégrations mDNS/SSDP
-- Une gestion indépendante des mises à jour
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: home-assistant
-  labels:
-    app.kubernetes.io/managed-by: argocd
 ```
 
 ## 🔧 Utilisation

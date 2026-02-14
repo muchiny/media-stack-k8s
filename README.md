@@ -20,10 +20,6 @@ graph TB
                 Plex[🎥 Plex<br/>Media Server<br/>:32400]
                 QB[⬇️ qBittorrent<br/>Torrent Client<br/>:8080]
             end
-
-            subgraph "🏠 Namespace: home-assistant"
-                HA[🏡 Home Assistant<br/>Domotique<br/>:8123]
-            end
         end
 
         Storage[(💾 /home/muchini/media-data)]
@@ -32,14 +28,11 @@ graph TB
     DNS --> CF
     Users --> Plex
     Users --> QB
-    Users --> HA
     ArgoCD --> CF
     ArgoCD --> Plex
     ArgoCD --> QB
-    ArgoCD --> HA
     Plex --> Storage
     QB --> Storage
-    HA --> Storage
 ```
 
 ## 🚀 Services
@@ -49,7 +42,6 @@ graph TB
 | 🛡️ Cloudflared | DNS over HTTPS (anti-censure) | ClusterIP 5053 | media-stack | ✅ |
 | 🎥 Plex | Media Server avec transcodage HW | 32400 (hostNetwork) | media-stack | ✅ |
 | ⬇️ qBittorrent | Client torrent (anti-seeding) | 8080 (hostPort) | media-stack | ✅ |
-| 🏡 Home Assistant | Domotique open source | 8123 (hostNetwork) | home-assistant | ✅ |
 
 ## 🔧 Déploiement
 
@@ -68,7 +60,6 @@ kubectl get applications -n argocd -w
 | 🔄 ArgoCD | https://192.168.1.51:30443 |
 | 🎥 Plex | http://192.168.1.51:32400/web |
 | ⬇️ qBittorrent | http://192.168.1.51:8080 |
-| 🏡 Home Assistant | http://192.168.1.51:8123 |
 
 ## 📁 Structure du projet
 
@@ -81,14 +72,12 @@ graph LR
             A1[cloudflared.yaml]
             A2[plex.yaml]
             A3[qbittorrent.yaml]
-            A4[homeassistant.yaml]
         end
 
         subgraph "📁 charts/"
             C1[☁️ cloudflared/]
             C2[🎥 plex/]
             C3[⬇️ qbittorrent/]
-            C4[🏡 homeassistant/]
         end
 
         subgraph "📁 base/"
@@ -99,11 +88,9 @@ graph LR
     ROOT --> A1
     ROOT --> A2
     ROOT --> A3
-    ROOT --> A4
     A1 --> C1
     A2 --> C2
     A3 --> C3
-    A4 --> C4
 ```
 
 ```
@@ -112,16 +99,13 @@ graph LR
 │   ├── 📄 root-app.yaml   # App of Apps parent
 │   ├── 📄 cloudflared.yaml
 │   ├── 📄 plex.yaml
-│   ├── 📄 qbittorrent.yaml
-│   └── 📄 homeassistant.yaml
+│   └── 📄 qbittorrent.yaml
 ├── 📁 base/               # Ressources de base
-│   ├── 📄 namespace.yaml
-│   └── 📄 namespace-home-assistant.yaml
+│   └── 📄 namespace.yaml
 └── 📁 charts/             # Helm Charts
     ├── ☁️ cloudflared/
     ├── 🎥 plex/
-    ├── ⬇️ qbittorrent/
-    └── 🏡 homeassistant/
+    └── ⬇️ qbittorrent/
 ```
 
 ## ⚠️ Contraintes importantes

@@ -4,3 +4,6 @@ description: DNS over HTTPS proxy using Cloudflare
 type: application
 version: 1.0.0
 appVersion: "2025.11.1"
+maintainers:
+  - name: muchiny
+    url: https://github.com/muchiny

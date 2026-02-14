@@ -15,26 +15,22 @@ graph TB
         CF[🛡️ cloudflared.yaml]
         PX[🎥 plex.yaml]
         QB[⬇️ qbittorrent.yaml]
-        HA[🏡 homeassistant.yaml]
     end
 
     subgraph "📊 Charts Helm"
         CFChart[charts/cloudflared/]
         PXChart[charts/plex/]
         QBChart[charts/qbittorrent/]
-        HAChart[charts/homeassistant/]
     end
 
     RootApp -->|"sync"| NS
     RootApp -->|"sync"| CF
     RootApp -->|"sync"| PX
     RootApp -->|"sync"| QB
-    RootApp -->|"sync"| HA
 
     CF -->|"déploie"| CFChart
     PX -->|"déploie"| PXChart
     QB -->|"déploie"| QBChart
-    HA -->|"déploie"| HAChart
 ```
 
 ## 📄 Fichiers
@@ -46,7 +42,6 @@ graph TB
 | 🛡️ `cloudflared.yaml` | Déploie le proxy DNS-over-HTTPS |
 | 🎥 `plex.yaml` | Déploie Plex Media Server |
 | ⬇️ `qbittorrent.yaml` | Déploie qBittorrent |
-| 🏡 `homeassistant.yaml` | Déploie Home Assistant |
 
 ## 🔄 Flux de synchronisation
 

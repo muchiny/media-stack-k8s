@@ -16,17 +16,14 @@ media-stack-k8s/
 │   ├── cloudflared.yaml        # App Cloudflared
 │   ├── plex.yaml               # App Plex
 │   ├── qbittorrent.yaml        # App qBittorrent
-│   ├── homeassistant.yaml      # App Home Assistant
 │   ├── priority-classes.yaml   # Classes de priorité
 │   └── resource-quota.yaml     # Quotas de ressources
 ├── 📂 base/                    # Ressources K8s de base
-│   ├── namespace.yaml          # Namespace media-stack
-│   └── namespace-home-assistant.yaml
+│   └── namespace.yaml          # Namespace media-stack
 ├── 📂 charts/                  # Helm Charts
 │   ├── cloudflared/
 │   ├── plex/
-│   ├── qbittorrent/
-│   └── homeassistant/
+│   └── qbittorrent/
 ├── 📂 .github/workflows/       # CI/CD GitHub Actions
 │   └── validate.yaml           # Pipeline de validation
 ├── .yamllint.yaml              # Config yamllint
@@ -51,10 +48,6 @@ graph TB
             QB[⬇️ qBittorrent<br/>hostPort: 8080]
         end
 
-        subgraph "🏠 Namespace: home-assistant"
-            HA[🏡 Home Assistant<br/>hostNetwork<br/>Port: 8123]
-        end
-
         CoreDNS[🌐 CoreDNS]
         Storage[(💾 /home/muchini/media-data)]
     end
@@ -63,11 +56,9 @@ graph TB
     ArgoCD -->|"Déploie"| CF
     ArgoCD -->|"Déploie"| Plex
     ArgoCD -->|"Déploie"| QB
-    ArgoCD -->|"Déploie"| HA
     CoreDNS -->|"Forward DNS"| CF
     Plex --> Storage
     QB --> Storage
-    HA --> Storage
 ```
 
 ## 🎯 Décisions de conception clés
@@ -87,10 +78,6 @@ mindmap
       Init container
       Attend Cloudflared DNS
       Anti-seeding
-    🏡 Home Assistant
-      hostNetwork: true
-      mDNS/SSDP discovery
-      Namespace séparé
     💾 Storage
       hostPath volumes
       /home/muchini/media-data/
@@ -101,8 +88,6 @@ mindmap
 | 🛡️ Cloudflared | ClusterIP fixe `10.43.48.123` | Intégration CoreDNS |
 | 🎥 Plex | `hostNetwork: true` | Découverte DLNA/GDM |
 | ⬇️ qBittorrent | Init container | Attend Cloudflared DNS |
-| 🏡 Home Assistant | `hostNetwork: true` | Découverte mDNS/SSDP |
-| 🏡 Home Assistant | Namespace `home-assistant` | Isolation |
 | 💾 Tous les pods | `hostPath` volumes | Stockage `/home/muchini/media-data/` |
 
 ## 🔧 Commandes
@@ -118,7 +103,6 @@ kubectl get applications -n argocd -w
 
 # 📊 Vérifier les pods
 kubectl get pods -n media-stack
-kubectl get pods -n home-assistant
 
 # 🌐 UI ArgoCD
 # https://192.168.1.51:30443
@@ -127,7 +111,6 @@ kubectl get pods -n home-assistant
 argocd app sync cloudflared
 argocd app sync plex
 argocd app sync qbittorrent
-argocd app sync homeassistant
 ```
 
 ### 🧪 Test des Helm Charts (local)
@@ -137,13 +120,11 @@ argocd app sync homeassistant
 helm template charts/cloudflared
 helm template charts/plex
 helm template charts/qbittorrent
-helm template charts/homeassistant
 
 # 🔍 Linter les charts
 helm lint charts/cloudflared
 helm lint charts/plex
 helm lint charts/qbittorrent
-helm lint charts/homeassistant
 
 # 📝 YAML Lint
 yamllint -c .yamllint.yaml .
@@ -194,7 +175,7 @@ Définies dans `apps/priority-classes.yaml` pour gérer l'éviction des pods:
 |--------|--------|----------|
 | 🔴 `media-critical` | 1,000,000 | Cloudflared (DNS) |
 | 🟠 `media-high` | 900,000 | Plex, qBittorrent |
-| 🟢 `media-normal` | 800,000 | Home Assistant |
+| 🟢 `media-normal` | 800,000 | (Réservé) |
 
 ### 📏 Resource Quotas
 
@@ -246,14 +227,12 @@ graph LR
             CFG1["cloudflared/"]
             CFG2["plex/"]
             CFG3["qbittorrent/"]
-            CFG4["homeassistant/"]
         end
     end
 
     Config --> CFG1
     Config --> CFG2
     Config --> CFG3
-    Config --> CFG4
 ```
 
 | Type | Chemin |

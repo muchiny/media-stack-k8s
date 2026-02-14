@@ -4,6 +4,8 @@ kind: ResourceQuota
 metadata:
   name: media-stack-quota
   namespace: media-stack
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   hard:
     requests.cpu: "4"

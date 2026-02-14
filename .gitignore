@@ -1,4 +1,30 @@
+# OS
 .DS_Store
+Thumbs.db
+
+# Editors
 *.swp
 *.swo
 *~
+*.bak
+
+# IDEs
+.idea/
+.vscode/
+*.code-workspace
+
+# Claude Code
+.claude/settings.local.json
+
+# Helm
+charts/**/charts/
+*.tgz
+
+# Kubernetes secrets (ne jamais commiter)
+*-secret.yaml
+*-secrets.yaml
+secrets/
+
+# Temporary files
+*.tmp
+*.log

@@ -16,9 +16,9 @@ resources:
     cpu: 50m
 config:
   serverNames:
-  - cloudflare
+    - cloudflare
   listenAddresses:
-  - 0.0.0.0:5053
+    - "0.0.0.0:5053"
   maxClients: 250
   ipv6Servers: false
   dnscrypt: false

@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: klutchell/dnscrypt-proxy
-  tag: "2.1.5"
+  tag: 2.1.15
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
@@ -15,11 +15,10 @@ resources:
     memory: 32Mi
     cpu: 50m
 config:
-  # Use Cloudflare DoH
   serverNames:
-    - cloudflare
+  - cloudflare
   listenAddresses:
-    - "0.0.0.0:5053"
+  - 0.0.0.0:5053
   maxClients: 250
   ipv6Servers: false
   dnscrypt: false

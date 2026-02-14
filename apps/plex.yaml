@@ -8,6 +8,7 @@ metadata:
     # ArgoCD Image Updater
     argocd-image-updater.argoproj.io/image-list: plex=lscr.io/linuxserver/plex
     argocd-image-updater.argoproj.io/plex.update-strategy: semver
+    argocd-image-updater.argoproj.io/plex.semver-constraint: "*"
     argocd-image-updater.argoproj.io/plex.allow-tags: regexp:^[0-9]+\.[0-9]+\.[0-9]+$
     argocd-image-updater.argoproj.io/plex.helm.image-name: image.repository
     argocd-image-updater.argoproj.io/plex.helm.image-tag: image.tag

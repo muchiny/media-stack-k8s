@@ -8,6 +8,7 @@ metadata:
     # ArgoCD Image Updater
     argocd-image-updater.argoproj.io/image-list: cloudflared=cloudflare/cloudflared
     argocd-image-updater.argoproj.io/cloudflared.update-strategy: semver
+    argocd-image-updater.argoproj.io/cloudflared.semver-constraint: "*"
     argocd-image-updater.argoproj.io/cloudflared.allow-tags: regexp:^[0-9]+\.[0-9]+\.[0-9]+$
     argocd-image-updater.argoproj.io/cloudflared.helm.image-name: image.repository
     argocd-image-updater.argoproj.io/cloudflared.helm.image-tag: image.tag

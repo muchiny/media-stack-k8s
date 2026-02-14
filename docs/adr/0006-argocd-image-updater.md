@@ -19,8 +19,8 @@ Ce processus manuel est fastidieux et peut entraîner des retards dans l'applica
 Implémenter ArgoCD Image Updater avec la configuration suivante:
 
 ### Stratégie de mise à jour
-- **Semver**: Minor + Patch uniquement (1.x.x)
-- Les mises à jour majeures sont ignorées pour éviter les breaking changes
+- **Semver**: Toutes les versions (Major, Minor, Patch)
+- Contrainte: `*` (aucune restriction de version)
 - Filtre regex: `^[0-9]+\.[0-9]+\.[0-9]+$` (ignore les tags comme `latest`, `dev`)
 
 ### Write-back
@@ -39,23 +39,24 @@ Implémenter ArgoCD Image Updater avec la configuration suivante:
 ## Conséquences
 
 ### Positives
-- Mises à jour automatiques des versions patch et minor
+- Mises à jour automatiques de toutes les versions (major, minor, patch)
 - Correctifs de sécurité appliqués rapidement
+- Nouvelles fonctionnalités disponibles automatiquement
 - Traçabilité via commits Git automatiques
 - Respect du workflow GitOps (état désiré dans Git)
 - Rollback facile via Git revert
 
 ### Négatives
-- Risque de régression avec les mises à jour minor
+- Risque de breaking changes avec les mises à jour majeures
 - Nécessite un token GitHub avec accès en écriture
 - Dépendance à un composant supplémentaire (Image Updater)
 - Les mises à jour peuvent arriver à des moments inopportuns
 
 ### Mitigations
-- Les mises à jour majeures sont bloquées
-- Le filtre regex évite les tags instables
+- Le filtre regex évite les tags instables (latest, dev, etc.)
 - Monitoring des logs Image Updater recommandé
 - PodDisruptionBudgets garantissent la disponibilité
+- Rollback via `git revert` en cas de problème
 
 ## Références
 

@@ -44,17 +44,14 @@ spec:
           port: 5053
         - protocol: TCP
           port: 5053
-    # Allow torrent traffic (HTTP/HTTPS trackers and peers)
+    # Allow torrent traffic (trackers and peers on any port)
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
       ports:
         - protocol: TCP
-          port: 443
-        - protocol: TCP
-          port: 80
-        - protocol: TCP
-          port: 6881
         - protocol: UDP
-          port: 6881
 {{- end }}

@@ -1,0 +1,88 @@
+name: Validate Charts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: YAML Lint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: .yamllint.yaml
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Helm Lint
+        run: |
+          for chart in charts/*/; do
+            helm lint "$chart"
+          done
+
+      - name: Kube-linter
+        uses: stackrox/kube-linter-action@v1
+        with:
+          directory: charts/
+          config: .kube-linter.yaml
+
+  validate:
+    name: Validate K8s Schemas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          wget -q https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform-linux-amd64.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate manifests
+        run: |
+          for chart in charts/*/; do
+            echo "Validating $chart"
+            helm template "$chart" | kubeconform -strict -summary
+          done
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Trivy IaC scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'charts/'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+      - name: Kubescape scan
+        uses: kubescape/github-action@main
+        with:
+          files: "charts/"
+          frameworks: "NSA,MITRE"
+          severityThreshold: "high"
+
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: charts/
+          framework: kubernetes
+          quiet: true
+          soft_fail: false

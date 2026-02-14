@@ -1,16 +1,12 @@
 replicaCount: 1
-
 image:
   repository: lscr.io/linuxserver/qbittorrent
-  tag: "5.1.4"
+  tag: 20.04.1
   pullPolicy: IfNotPresent
-
-# Init container for DNS wait
 initContainer:
   image:
     repository: busybox
     tag: "1.36"
-
 service:
   webui:
     type: NodePort
@@ -20,7 +16,6 @@ service:
     type: NodePort
     port: 6881
     nodePort: 30881
-
 persistence:
   config:
     hostPath: /home/muchini/media-data/config/qbittorrent
@@ -31,17 +26,13 @@ persistence:
   media:
     hostPath: /media
     mountPath: /media
-
 environment:
   PUID: "1000"
   PGID: "1000"
-  TZ: "Europe/Paris"
+  TZ: Europe/Paris
   WEBUI_PORT: "8080"
-
-# DNS points to Cloudflared service
 dns:
-  cloudflaredService: "cloudflared"
-
+  cloudflaredService: cloudflared
 resources:
   limits:
     memory: 1Gi
@@ -49,13 +40,8 @@ resources:
   requests:
     memory: 256Mi
     cpu: 100m
-
-# Priority class for pod scheduling
 priorityClassName: media-high
-
 nodeSelector:
   kubernetes.io/arch: arm64
-
-# Network policy for traffic control
 networkPolicy:
   enabled: true

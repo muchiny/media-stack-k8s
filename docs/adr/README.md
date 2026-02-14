@@ -12,6 +12,7 @@ Ce répertoire contient les Architecture Decision Records (ADRs) documentant les
 | [0003](0003-hostnetwork-plex.md) | hostNetwork pour Plex | Accepté |
 | [0004](0004-hostpath-volumes.md) | Volumes hostPath | Accepté |
 | [0005](0005-priority-classes.md) | Classes de priorité | Accepté |
+| [0006](0006-argocd-image-updater.md) | ArgoCD Image Updater | Accepté |
 
 ## Créer un nouvel ADR
 

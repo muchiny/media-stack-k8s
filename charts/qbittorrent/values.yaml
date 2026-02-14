@@ -5,6 +5,12 @@ image:
   tag: "5.1.4"
   pullPolicy: IfNotPresent
 
+# Init container for DNS wait
+initContainer:
+  image:
+    repository: busybox
+    tag: "1.36"
+
 service:
   webui:
     type: NodePort

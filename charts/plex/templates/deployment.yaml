@@ -28,6 +28,15 @@ spec:
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+          - name: timeout
+            value: "5"
+          - name: attempts
+            value: "3"
+      terminationGracePeriodSeconds: 120
       containers:
         - name: plex
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

@@ -1,0 +1,24 @@
+image:
+  repository: alpine
+  tag: "3.21"
+  pullPolicy: IfNotPresent
+
+schedule: "0 3 * * *"
+
+backup:
+  sourcePath: /home/muchini/media-data/config
+  destPath: /home/muchini/backups
+  retention: 7
+
+resources:
+  limits:
+    memory: 128Mi
+    cpu: 200m
+  requests:
+    memory: 64Mi
+    cpu: 50m
+
+priorityClassName: media-normal
+
+nodeSelector:
+  kubernetes.io/arch: arm64

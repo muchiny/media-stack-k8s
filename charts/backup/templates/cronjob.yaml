@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "backup.fullname" . }}
+  labels:
+    {{- include "backup.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "backup.selectorLabels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "backup.selectorLabels" . | nindent 12 }}
+        spec:
+          {{- if .Values.priorityClassName }}
+          priorityClassName: {{ .Values.priorityClassName }}
+          {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                runAsUser: 1000
+                runAsGroup: 1000
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  BACKUP_FILE="{{ .Values.backup.destPath }}/media-config-${TIMESTAMP}.tar.gz"
+                  echo "Starting backup at ${TIMESTAMP}"
+                  echo "Source: {{ .Values.backup.sourcePath }}"
+                  echo "Destination: ${BACKUP_FILE}"
+                  tar -czf "${BACKUP_FILE}" -C "$(dirname {{ .Values.backup.sourcePath }})" "$(basename {{ .Values.backup.sourcePath }})"
+                  echo "Backup created: $(ls -lh ${BACKUP_FILE})"
+                  echo "Cleaning up old backups (keeping last {{ .Values.backup.retention }})..."
+                  ls -1t {{ .Values.backup.destPath }}/media-config-*.tar.gz | tail -n +$(( {{ .Values.backup.retention }} + 1 )) | xargs -r rm -f
+                  echo "Remaining backups:"
+                  ls -lht {{ .Values.backup.destPath }}/media-config-*.tar.gz
+                  echo "Backup completed successfully"
+              volumeMounts:
+                - name: source
+                  mountPath: {{ .Values.backup.sourcePath }}
+                  readOnly: true
+                - name: dest
+                  mountPath: {{ .Values.backup.destPath }}
+          volumes:
+            - name: source
+              hostPath:
+                path: {{ .Values.backup.sourcePath }}
+                type: Directory
+            - name: dest
+              hostPath:
+                path: {{ .Values.backup.destPath }}
+                type: DirectoryOrCreate

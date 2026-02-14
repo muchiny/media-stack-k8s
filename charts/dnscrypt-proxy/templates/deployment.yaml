@@ -6,6 +6,8 @@ metadata:
     {{- include "dnscrypt-proxy.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "dnscrypt-proxy.selectorLabels" . | nindent 6 }}
@@ -21,6 +23,16 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      dnsConfig:
+        nameservers:
+          - "1.1.1.1"
+        options:
+          - name: ndots
+            value: "2"
+          - name: timeout
+            value: "5"
+          - name: attempts
+            value: "3"
       containers:
         - name: dnscrypt-proxy
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -51,17 +63,20 @@ spec:
               port: 5053
             initialDelaySeconds: 10
             periodSeconds: 30
+            timeoutSeconds: 5
           readinessProbe:
             tcpSocket:
               port: 5053
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
           startupProbe:
             tcpSocket:
               port: 5053
             initialDelaySeconds: 0
             periodSeconds: 5
             failureThreshold: 12
+            timeoutSeconds: 5
           lifecycle:
             preStop:
               exec:

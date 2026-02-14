@@ -26,6 +26,7 @@ persistence:
   media:
     hostPath: /media
     mountPath: /media
+    readOnly: true
   session:
     hostPath: /home/muchini/media-data/config/qbittorrent/session
     mountPath: /config/qBittorrent/data

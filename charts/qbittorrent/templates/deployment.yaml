@@ -28,6 +28,14 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+          - name: timeout
+            value: "5"
+          - name: attempts
+            value: "3"
       initContainers:
         # Wait for DNS proxy service to be ready
         - name: wait-for-dns
@@ -49,8 +57,8 @@ spec:
               until nslookup {{ include "qbittorrent.dnsProxyServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local; do
                 ATTEMPTS=$((ATTEMPTS + 1))
                 if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
-                  echo "DNS proxy not available after 2 minutes, proceeding anyway"
-                  break
+                  echo "DNS proxy not available after 2 minutes, aborting"
+                  exit 1
                 fi
                 echo "DNS proxy not ready, waiting... ($ATTEMPTS/$MAX_ATTEMPTS)"
                 sleep 5
@@ -91,6 +99,7 @@ spec:
               mountPath: {{ .Values.persistence.downloads.mountPath }}
             - name: media
               mountPath: {{ .Values.persistence.media.mountPath }}
+              readOnly: true
             - name: session
               mountPath: {{ .Values.persistence.session.mountPath }}
           lifecycle:
@@ -105,18 +114,21 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 30
             failureThreshold: 5
+            timeoutSeconds: 5
           readinessProbe:
             tcpSocket:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 3
+            timeoutSeconds: 5
           startupProbe:
             tcpSocket:
               port: 8080
             initialDelaySeconds: 0
             periodSeconds: 10
             failureThreshold: 30
+            timeoutSeconds: 5
       volumes:
         - name: config
           hostPath:

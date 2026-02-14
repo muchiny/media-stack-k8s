@@ -99,7 +99,6 @@ spec:
               mountPath: {{ .Values.persistence.downloads.mountPath }}
             - name: media
               mountPath: {{ .Values.persistence.media.mountPath }}
-              readOnly: true
             - name: session
               mountPath: {{ .Values.persistence.session.mountPath }}
           lifecycle:

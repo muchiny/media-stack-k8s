@@ -84,7 +84,7 @@ spec:
               port: 32400
             initialDelaySeconds: 30
             periodSeconds: 10
-            failureThreshold: 30
+            failureThreshold: 60
             timeoutSeconds: 5
       volumes:
         - name: config

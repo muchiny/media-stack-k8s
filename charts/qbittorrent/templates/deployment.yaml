@@ -44,8 +44,15 @@ spec:
             - -c
             - |
               echo "Waiting for DNS proxy service..."
+              ATTEMPTS=0
+              MAX_ATTEMPTS=24
               until nslookup {{ include "qbittorrent.dnsProxyServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local; do
-                echo "DNS proxy not ready, waiting..."
+                ATTEMPTS=$((ATTEMPTS + 1))
+                if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
+                  echo "DNS proxy not available after 2 minutes, proceeding anyway"
+                  break
+                fi
+                echo "DNS proxy not ready, waiting... ($ATTEMPTS/$MAX_ATTEMPTS)"
                 sleep 5
               done
               echo "DNS proxy is ready!"
@@ -84,8 +91,8 @@ spec:
               mountPath: {{ .Values.persistence.downloads.mountPath }}
             - name: media
               mountPath: {{ .Values.persistence.media.mountPath }}
-            - name: session-tmpfs
-              mountPath: /config/qBittorrent/data
+            - name: session
+              mountPath: {{ .Values.persistence.session.mountPath }}
           lifecycle:
             preStop:
               exec:
@@ -123,7 +130,7 @@ spec:
           hostPath:
             path: {{ .Values.persistence.media.hostPath }}
             type: Directory
-        - name: session-tmpfs
-          emptyDir:
-            medium: Memory
-            sizeLimit: 64Mi
+        - name: session
+          hostPath:
+            path: {{ .Values.persistence.session.hostPath }}
+            type: DirectoryOrCreate

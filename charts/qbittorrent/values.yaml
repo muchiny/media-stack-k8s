@@ -26,6 +26,9 @@ persistence:
   media:
     hostPath: /media
     mountPath: /media
+  session:
+    hostPath: /home/muchini/media-data/config/qbittorrent/session
+    mountPath: /config/qBittorrent/data
 environment:
   PUID: "1000"
   PGID: "1000"

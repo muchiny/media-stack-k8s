@@ -9,3 +9,5 @@ checks:
     - run-as-non-root
     # These containers need to write to their config directories
     - no-read-only-root-fs
+    # Single replica deployments on Raspberry Pi - PDB with minAvailable:1 is intentional
+    - pdb-min-available

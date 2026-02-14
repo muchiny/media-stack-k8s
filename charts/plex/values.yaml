@@ -53,3 +53,8 @@ service:
 # Network policy (limited effect with hostNetwork: true)
 networkPolicy:
   enabled: true
+
+# Traefik IngressRoute
+ingress:
+  enabled: true
+  host: plex.local

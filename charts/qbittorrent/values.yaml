@@ -45,3 +45,8 @@ nodeSelector:
   kubernetes.io/arch: arm64
 networkPolicy:
   enabled: true
+
+# Traefik IngressRoute
+ingress:
+  enabled: true
+  host: qbit.local

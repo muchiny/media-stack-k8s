@@ -16,6 +16,9 @@ Thumbs.db
 # Claude Code
 .claude/settings.local.json
 
+# Generated docs
+charts/README.md
+
 # Helm
 charts/**/charts/
 *.tgz

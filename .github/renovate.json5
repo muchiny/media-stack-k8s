@@ -1,0 +1,116 @@
+// Renovate configuration for media-stack-k8s
+// Complements ArgoCD Image Updater (which manages plex, qbittorrent, dnscrypt-proxy)
+// Renovate handles: utility images, GitHub Actions, and CI tool versions
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // ── Base presets ──────────────────────────────────────────────────────────
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
+  ],
+
+  // ── Schedule ──────────────────────────────────────────────────────────────
+  "schedule": ["before 9am on monday"],
+  "timezone": "Europe/Paris",
+
+  // ── PR settings ───────────────────────────────────────────────────────────
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rebaseWhen": "conflicted",
+
+  // ── Commit format ─────────────────────────────────────────────────────────
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+
+  // ── Managers ──────────────────────────────────────────────────────────────
+  "enabledManagers": ["github-actions", "helm-values", "regex"],
+
+  // ── Ignore images managed by ArgoCD Image Updater ─────────────────────────
+  // These 3 images are tracked by Image Updater annotations in apps/*.yaml
+  // Renovate must NOT touch them to avoid conflicts
+  "ignoreDeps": [
+    "klutchell/dnscrypt-proxy",
+    "lscr.io/linuxserver/plex",
+    "lscr.io/linuxserver/qbittorrent"
+  ],
+
+  // ── Custom managers ───────────────────────────────────────────────────────
+  "customManagers": [
+    // busybox initContainer in qbittorrent (nested under initContainer.image)
+    // helm-values only detects top-level image: blocks
+    {
+      "customType": "regex",
+      "description": "initContainer busybox image in qbittorrent values.yaml",
+      "fileMatch": ["charts/qbittorrent/values\\.yaml$"],
+      "matchStrings": [
+        "initContainer:\\s*\\n\\s*image:\\s*\\n\\s*repository:\\s*(?<depName>[^\\s\\n]+)\\n\\s*tag:\\s*\"?(?<currentValue>[^\\s\"\\n]+)\"?"
+      ],
+      "matchStringsStrategy": "any",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    // kubeconform version installed via wget in CI workflow
+    {
+      "customType": "regex",
+      "description": "kubeconform version in CI workflow",
+      "fileMatch": ["\\.github/workflows/validate\\.yaml$"],
+      "matchStrings": [
+        "# renovate: datasource=github-releases depName=yannh/kubeconform\\n\\s+KUBECONFORM_VERSION:\\s*\"(?<currentValue>v[^\"]+)\""
+      ],
+      "matchStringsStrategy": "any",
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "yannh/kubeconform"
+    }
+  ],
+
+  // ── Package rules ─────────────────────────────────────────────────────────
+  "packageRules": [
+
+    // Group: utility images (busybox, alpine)
+    {
+      "description": "Group utility images together",
+      "matchManagers": ["helm-values", "regex"],
+      "matchPackageNames": ["busybox", "alpine"],
+      "groupName": "Utility images",
+      "labels": ["dependencies", "docker"]
+    },
+
+    // Auto-merge: busybox and alpine PATCH only
+    {
+      "description": "Auto-merge patch updates for utility images",
+      "matchManagers": ["helm-values", "regex"],
+      "matchPackageNames": ["busybox", "alpine"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "minimumReleaseAge": "3 days",
+      "labels": ["dependencies", "docker", "automerge"]
+    },
+
+    // Group: GitHub Actions — auto-merge patch + minor
+    {
+      "description": "Group and auto-merge GitHub Actions (patch/minor)",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "GitHub Actions",
+      "labels": ["dependencies", "github-actions"],
+      "automerge": true,
+      "automergeType": "pr",
+      "minimumReleaseAge": "3 days"
+    },
+
+    // GitHub Actions MAJOR: no auto-merge
+    {
+      "description": "Block automerge for major GitHub Actions bumps",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "GitHub Actions (major)",
+      "labels": ["dependencies", "github-actions", "major"],
+      "automerge": false
+    }
+  ]
+}

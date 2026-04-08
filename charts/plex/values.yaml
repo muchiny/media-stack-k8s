@@ -1,17 +1,11 @@
 replicaCount: 1
-
 image:
   repository: lscr.io/linuxserver/plex
-  tag: "1.43.0"
+  tag: 1.43.1
   pullPolicy: IfNotPresent
-
-# CRITICAL: hostNetwork required for Plex discovery (DLNA/GDM)
 hostNetwork: true
-
-# Hardware transcoding - requires privileged mode
 gpu:
   enabled: true
-
 persistence:
   config:
     hostPath: /home/muchini/media-data/config/plex
@@ -25,13 +19,11 @@ persistence:
     mountPath: /transcode
     medium: Memory
     sizeLimit: 256Mi
-
 environment:
   PUID: "1000"
   PGID: "1000"
-  TZ: "Europe/Paris"
-  VERSION: "docker"
-
+  TZ: Europe/Paris
+  VERSION: docker
 resources:
   limits:
     memory: 4Gi
@@ -39,22 +31,14 @@ resources:
   requests:
     memory: 1Gi
     cpu: 1000m
-
-# Priority class for pod scheduling
 priorityClassName: media-high
-
 nodeSelector:
   kubernetes.io/arch: arm64
-
 service:
   type: ClusterIP
   port: 32400
-
-# Network policy (limited effect with hostNetwork: true)
 networkPolicy:
   enabled: true
-
-# Traefik IngressRoute
 ingress:
   enabled: true
   host: plex.local

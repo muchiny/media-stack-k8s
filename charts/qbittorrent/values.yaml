@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: lscr.io/linuxserver/qbittorrent
-  tag: "5.1.4"
+  tag: 5.2.0
   pullPolicy: IfNotPresent
 initContainer:
   image:
@@ -48,8 +48,6 @@ nodeSelector:
   kubernetes.io/arch: arm64
 networkPolicy:
   enabled: true
-
-# Traefik IngressRoute
 ingress:
   enabled: true
   host: qbit.local

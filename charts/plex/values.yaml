@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: lscr.io/linuxserver/plex
-  tag: 1.43.1
+  tag: 1.43.2
   pullPolicy: IfNotPresent
 hostNetwork: true
 gpu:

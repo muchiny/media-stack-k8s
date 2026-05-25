@@ -39,6 +39,8 @@ spec:
                 capabilities:
                   drop:
                     - ALL
+                  add:
+                    - DAC_READ_SEARCH
               resources:
                 {{- toYaml .Values.resources | nindent 16 }}
               command:

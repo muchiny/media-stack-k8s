@@ -32,8 +32,8 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               securityContext:
-                runAsUser: 1000
-                runAsGroup: 1000
+                runAsUser: 0
+                runAsGroup: 0
                 readOnlyRootFilesystem: true
                 allowPrivilegeEscalation: false
                 capabilities:

@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: lscr.io/linuxserver/qbittorrent
-  tag: 5.2.0
+  tag: 5.2.1
   pullPolicy: IfNotPresent
 initContainer:
   image:

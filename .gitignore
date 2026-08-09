@@ -26,6 +26,9 @@ charts/**/charts/
 # Kubernetes secrets (ne jamais commiter)
 *-secret.yaml
 *-secrets.yaml
+secret.yaml
+secrets.yaml
+**/templates/secret.yaml
 secrets/
 
 # Temporary files

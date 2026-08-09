@@ -58,8 +58,18 @@ spec:
                   echo "Destination: ${BACKUP_FILE}"
                   tar -czf "${BACKUP_FILE}" -C "$(dirname {{ .Values.backup.sourcePath }})" "$(basename {{ .Values.backup.sourcePath }})"
                   echo "Backup created: $(ls -lh ${BACKUP_FILE})"
-                  echo "Cleaning up old backups (keeping last {{ .Values.backup.retention }})..."
-                  ls -1t {{ .Values.backup.destPath }}/media-config-*.tar.gz | tail -n +$(( {{ .Values.backup.retention }} + 1 )) | xargs -r rm -f
+                  # Rotation PAR DATE et non par nombre. L'ancienne version
+                  # gardait les N plus recentes : quatre executions manuelles le
+                  # 2026-08-09 ont suffi a chasser les sauvegardes du 3 au 6 aout
+                  # hors de la fenetre. Une retention en jours resiste aux tests.
+                  echo "Cleaning up backups older than {{ .Values.backup.retentionDays }} days..."
+                  find {{ .Values.backup.destPath }} -maxdepth 1 -name 'media-config-*.tar.gz' \
+                    -mtime +{{ .Values.backup.retentionDays }} -print -delete
+                  # Garde-fou : conserver au minimum la derniere sauvegarde, meme
+                  # si elle a depasse la retention (machine eteinte longtemps).
+                  if [ -z "$(ls -1 {{ .Values.backup.destPath }}/media-config-*.tar.gz 2>/dev/null)" ]; then
+                    echo "ATTENTION : plus aucune archive apres rotation"
+                  fi
                   echo "Remaining backups:"
                   ls -lht {{ .Values.backup.destPath }}/media-config-*.tar.gz
                   echo "Backup completed successfully"

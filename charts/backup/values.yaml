@@ -8,7 +8,9 @@ schedule: "0 3 * * *"
 backup:
   sourcePath: /home/muchini/media-data/config
   destPath: /home/muchini/backups
-  retention: 7
+  # Retention en JOURS (et non en nombre d'archives) : une execution manuelle
+  # ne chasse plus une sauvegarde quotidienne hors de la fenetre.
+  retentionDays: 7
 
 resources:
   limits:

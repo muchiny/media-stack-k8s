@@ -7,7 +7,6 @@ Helm chart pour déployer **qBittorrent** avec configuration anti-seeding et DNS
 ```mermaid
 graph TB
     subgraph "☸️ Cluster K3s"
-        DNS[🛡️ dnscrypt-proxy<br/>DNS-over-HTTPS]
         QB[⬇️ qBittorrent<br/>Port 8080]
         Init[⏳ Init Container<br/>Attend DNS]
     end
@@ -72,9 +71,7 @@ persistence:
   media:
     hostPath: /media
 
-# DNS via dnscrypt-proxy
 dns:
-  dnsProxyService: "dnscrypt-proxy"
 
 environment:
   PUID: "1000"
@@ -92,7 +89,7 @@ nodeSelector:
 flowchart TB
     subgraph "📦 Deployment"
         subgraph "⏳ Init Container"
-            Init[busybox<br/>nslookup dnscrypt-proxy]
+            Init[busybox<br/>attend le DNS du cluster]
         end
 
         subgraph "🐳 Main Container"
@@ -121,7 +118,6 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant Init as ⏳ Init Container
-    participant DNS as 🛡️ dnscrypt-proxy
     participant QB as ⬇️ qBittorrent
 
     loop Toutes les 5 secondes
@@ -169,8 +165,7 @@ mindmap
 | ⚠️ | Description |
 |----|-------------|
 | 🚫 | **Anti-seeding** - Configurer les limites dans WebUI |
-| ⏳ | **Init container** - Attend que dnscrypt-proxy soit prêt |
-| 🛡️ | **DNS sécurisé** - Utilise dnscrypt-proxy pour DNS-over-HTTPS |
+| ⏳ | **Init container** - Attend que le DNS du cluster réponde |
 | 📡 | **NodePort** - Accessible sur `30080` (WebUI) et `30881` (torrent) |
 | 🖥️ | **arm64** - NodeSelector force le déploiement sur Raspberry Pi |
 

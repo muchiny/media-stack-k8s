@@ -29,7 +29,3 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/name: {{ include "qbittorrent.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
-
-{{- define "qbittorrent.dnsProxyServiceName" -}}
-{{- printf "%s-%s" .Release.Name .Values.dns.dnsProxyService }}
-{{- end }}

@@ -1,6 +1,0 @@
-apiVersion: v2
-name: dnscrypt-proxy
-description: DNS-over-HTTPS proxy using dnscrypt-proxy
-type: application
-version: 1.0.0
-# appVersion managed by ArgoCD Image Updater in values.yaml (image.tag)

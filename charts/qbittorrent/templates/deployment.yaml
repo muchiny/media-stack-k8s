@@ -16,7 +16,7 @@ spec:
       labels:
         {{- include "qbittorrent.selectorLabels" . | nindent 8 }}
     spec:
-      # Use default cluster DNS (CoreDNS configured to use dnscrypt-proxy)
+      # DNS du cluster par defaut (CoreDNS -> /etc/resolv.conf de l'hote)
       dnsPolicy: ClusterFirst
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}
@@ -51,19 +51,24 @@ spec:
             - sh
             - -c
             - |
-              echo "Waiting for DNS proxy service..."
+              # On attend que le DNS du cluster reponde, pas qu'un service
+              # particulier existe. L'ancienne version attendait
+              # media-dnscrypt-proxy, qui n'a jamais recu la moindre requete
+              # (CoreDNS forwarde vers /etc/resolv.conf) : une dependance morte
+              # qui a bloque ce pod 3858 fois pendant la panne de juillet.
+              echo "Attente du DNS du cluster..."
               ATTEMPTS=0
               MAX_ATTEMPTS=24
-              until nslookup {{ include "qbittorrent.dnsProxyServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local; do
+              until nslookup kubernetes.default.svc.cluster.local; do
                 ATTEMPTS=$((ATTEMPTS + 1))
                 if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
-                  echo "DNS proxy not available after 2 minutes, aborting"
+                  echo "DNS indisponible apres 2 minutes, abandon"
                   exit 1
                 fi
-                echo "DNS proxy not ready, waiting... ($ATTEMPTS/$MAX_ATTEMPTS)"
+                echo "DNS pas encore pret, attente... ($ATTEMPTS/$MAX_ATTEMPTS)"
                 sleep 5
               done
-              echo "DNS proxy is ready!"
+              echo "DNS operationnel."
       containers:
         - name: qbittorrent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

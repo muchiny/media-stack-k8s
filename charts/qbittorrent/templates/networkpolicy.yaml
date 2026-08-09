@@ -34,16 +34,6 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Allow DNS queries to dnscrypt-proxy (if CoreDNS forwards to it)
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: {{ .Release.Namespace }}
-      ports:
-        - protocol: UDP
-          port: 5053
-        - protocol: TCP
-          port: 5053
     # Allow torrent traffic (trackers and peers on any port)
     - to:
         - ipBlock:

@@ -31,16 +31,19 @@ spec:
             - name: backup
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
+              # runAsUser: 0 + DAC_READ_SEARCH n'etaient necessaires que pour
+              # lire la config root de Home Assistant, retire le 2026-08-09
+              # (service mort depuis le 14 fevrier). Les configs restantes
+              # appartiennent a l'uid 1000, et le seul dossier root subsistant
+              # (qBittorrent/data) est en 755 donc traversable.
               securityContext:
-                runAsUser: 0
-                runAsGroup: 0
+                runAsUser: 1000
+                runAsGroup: 1000
                 readOnlyRootFilesystem: true
                 allowPrivilegeEscalation: false
                 capabilities:
                   drop:
                     - ALL
-                  add:
-                    - DAC_READ_SEARCH
               resources:
                 {{- toYaml .Values.resources | nindent 16 }}
               command:

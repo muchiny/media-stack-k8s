@@ -34,8 +34,6 @@ environment:
   PGID: "1000"
   TZ: Europe/Paris
   WEBUI_PORT: "8080"
-dns:
-  dnsProxyService: dnscrypt-proxy
 resources:
   limits:
     memory: 1Gi

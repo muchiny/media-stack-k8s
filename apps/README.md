@@ -12,13 +12,11 @@ graph TB
 
     subgraph "📂 Applications Enfants"
         NS[🏷️ namespace.yaml]
-        CF[🛡️ dnscrypt-proxy.yaml]
         PX[🎥 plex.yaml]
         QB[⬇️ qbittorrent.yaml]
     end
 
     subgraph "📊 Charts Helm"
-        CFChart[charts/dnscrypt-proxy/]
         PXChart[charts/plex/]
         QBChart[charts/qbittorrent/]
     end
@@ -39,7 +37,6 @@ graph TB
 |---------|-------------|
 | 🚀 `root-app.yaml` | Application parente - Point d'entrée ArgoCD |
 | 🏷️ `namespace.yaml` | Crée le namespace media-stack |
-| 🛡️ `dnscrypt-proxy.yaml` | Déploie le proxy DNS-over-HTTPS |
 | 🎥 `plex.yaml` | Déploie Plex Media Server |
 | ⬇️ `qbittorrent.yaml` | Déploie qBittorrent |
 
@@ -77,5 +74,4 @@ kubectl apply -f apps/root-app.yaml
 kubectl get applications -n argocd
 
 # 🔄 Forcer la sync d'une app
-argocd app sync dnscrypt-proxy
 ```

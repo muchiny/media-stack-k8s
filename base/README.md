@@ -39,7 +39,6 @@ metadata:
 ```mermaid
 graph TB
     subgraph "📦 Namespace: media-stack"
-        DNS[🛡️ dnscrypt-proxy<br/>DNS-over-HTTPS]
         PX[🎥 Plex<br/>Media Server]
         QB[⬇️ qBittorrent<br/>Torrent Client]
     end

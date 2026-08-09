@@ -91,10 +91,17 @@ spec:
               hostPort: 8080
               protocol: TCP
               name: webui
+            # hostPort indispensable pour etre joignable par les pairs :
+            # qBittorrent annonce le port 6881 aux trackers, or seul le
+            # NodePort 30881 etait ouvert sur la machine. Les pairs tentaient
+            # donc 6881 et tombaient dans le vide (mode "firewalled").
+            # A completer par une redirection 6881 TCP+UDP sur la box.
             - containerPort: 6881
+              hostPort: 6881
               protocol: TCP
               name: torrent-tcp
             - containerPort: 6881
+              hostPort: 6881
               protocol: UDP
               name: torrent-udp
           volumeMounts:

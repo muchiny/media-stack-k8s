@@ -164,7 +164,10 @@ mindmap
 
 | ⚠️ | Description |
 |----|-------------|
-| 🚫 | **Anti-seeding** - Configurer les limites dans WebUI |
+| 📤 | **Partage activé** (2026-08-09) - `hostPort: 6881` TCP+UDP. Sans lui, qBittorrent annonçait 6881 aux trackers alors que seul le NodePort 30881 était ouvert : les pairs ne pouvaient jamais l'atteindre. |
+| 🌐 | **Redirection box requise** - 6881 TCP+UDP vers `192.168.1.51`, sinon le partage reste inopérant |
+| ⚖️ | **Ratio** - `ShareLimitAction=Stop` est défini mais **aucune limite de ratio ne l'est**, donc il ne se déclenche jamais. À régler dans la WebUI. |
+| 🔓 | **Pas de VPN** - choix assumé : l'IP publique du domicile est visible dans les swarms |
 | ⏳ | **Init container** - Attend que le DNS du cluster réponde |
 | 📡 | **NodePort** - Accessible sur `30080` (WebUI) et `30881` (torrent) |
 | 🖥️ | **arm64** - NodeSelector force le déploiement sur Raspberry Pi |

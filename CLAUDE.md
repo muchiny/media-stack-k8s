@@ -181,7 +181,6 @@ Chaque chart inclut un PDB (`templates/pdb.yaml`) avec `minAvailable: 1` pour ga
 ```mermaid
 flowchart LR
     subgraph "🚫 INTERDIT"
-        A[❌ Seeding qBittorrent]
         C[❌ Ajouter *arr services]
     end
 
@@ -194,8 +193,9 @@ flowchart LR
 
 | ⚠️ Règle | Description |
 |---------|-------------|
-| 🚫 **NE PAS** | Activer le seeding dans qBittorrent |
 | 🚫 **NE PAS** | Ajouter les services *arr (Radarr, Sonarr, etc.) - intentionnellement exclus |
+| ⚠️ **DÉCISION** | Le partage qBittorrent est **activé** depuis le 2026-08-09 (`hostPort: 6881`). Le choix précédent de le bloquer a été levé volontairement. Nécessite une redirection 6881 TCP+UDP sur la box pour être effectif. |
+| ⚠️ **ATTENTION** | Aucun VPN sur qBittorrent — choix assumé. L'IP publique du domicile est donc visible dans les swarms. |
 | ✅ **REQUIS** | Plex `privileged: true` pour transcodage HW via `/dev/dri` |
 | ⚠️ **ATTENTION** | Toutes les apps ont `selfHeal: true` - les changements kubectl manuels seront annulés |
 

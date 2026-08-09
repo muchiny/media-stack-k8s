@@ -9,6 +9,13 @@ rules:
     max: 120
   indentation:
     spaces: 2
+    # argocd-image-updater reserialise entierement les values.yaml qu'il met a jour,
+    # et son marshaller YAML n'indente pas les sequences sous leur cle parente.
+    # Le profil "default" (indent-sequences: true) exigeait l'inverse : chaque bump
+    # automatique cassait la CI (cf. 6104895 du 2026-05-24, deja corrige a la main
+    # en 144dc3d puis re-casse). "consistent" verifie la coherence a l'interieur de
+    # chaque fichier et accepte les deux styles.
+    indent-sequences: consistent
   document-start: disable
   truthy:
     check-keys: false

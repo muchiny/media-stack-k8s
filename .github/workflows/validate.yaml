@@ -6,6 +6,33 @@ on:
   pull_request:
     branches: [main]
 
+# Le jeton par defaut n'a besoin que de lire le depot. Important ici :
+# ArgoCD synchronise ce depot avec selfHeal, donc un acces en ecriture
+# depuis la CI equivaudrait a une execution de code dans le cluster.
+permissions:
+  contents: read
+
+# argocd-image-updater peut pousser plusieurs bumps d'affilee.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # Force bash -eo pipefail. Sans pipefail, "helm template | kubeconform"
+    # renvoyait le code de kubeconform : un rendu Helm casse produisait une
+    # entree vide, kubeconform disait "0 resource, Valid: 0" et sortait 0.
+    # N'importe quelle erreur de template passait donc au vert.
+    shell: bash
+
+env:
+  # Schemas des CRD utilisees ici (traefik.io/IngressRoute, argoproj.io/Application).
+  # Sans eux il fallait -ignore-missing-schemas, qui les sautait EN SILENCE.
+  CRD_BASE: "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main"
+  CRD_TPL: "{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+  # Doit suivre la version reelle du cluster (k3s sur le Pi 5).
+  K8S_VERSION: "1.36.1"
+
 jobs:
   lint:
     name: Lint
@@ -24,7 +51,9 @@ jobs:
       - name: Helm Lint
         run: |
           for chart in charts/*/; do
+            echo "::group::$chart"
             helm lint "$chart"
+            echo "::endgroup::"
           done
 
       - name: Kube-linter
@@ -38,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # renovate: datasource=github-releases depName=yannh/kubeconform
-      KUBECONFORM_VERSION: "v0.6.4"
+      KUBECONFORM_VERSION: "v0.8.0"
     steps:
       - uses: actions/checkout@v4
 
@@ -60,44 +89,85 @@ jobs:
           tar xf "${TARBALL}"
           sudo mv kubeconform /usr/local/bin/
 
-      - name: Validate manifests
+      - name: Validate charts
         run: |
           for chart in charts/*/; do
-            echo "Validating $chart"
-            helm template "$chart" | kubeconform -strict -summary -ignore-missing-schemas
+            echo "::group::$chart"
+            helm template "$chart" | kubeconform \
+              -strict -summary \
+              -kubernetes-version "${K8S_VERSION}" \
+              -schema-location default \
+              -schema-location "${CRD_BASE}/${CRD_TPL}"
+            echo "::endgroup::"
           done
 
-  security:
-    name: Security Scan (Informational)
+      - name: Validate ArgoCD Applications
+        run: |
+          # apps/ porte le pattern App-of-Apps avec selfHeal ET prune.
+          # C'est le seul endroit du depot ou une faute de frappe peut faire
+          # SUPPRIMER des workloads reels. Il n'etait pas valide du tout.
+          kubeconform \
+            -strict -summary \
+            -kubernetes-version "${K8S_VERSION}" \
+            -schema-location default \
+            -schema-location "${CRD_BASE}/${CRD_TPL}" \
+            apps/ base/
+
+  images:
+    name: Images disponibles en arm64
     runs-on: ubuntu-latest
-    # Security scans are informational - intentional configs (privileged, hostNetwork) flagged
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
 
-      - name: Trivy IaC scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'config'
-          scan-ref: 'charts/'
-          severity: 'CRITICAL'
-          exit-code: '0'
+      - name: Verifier la variante linux/arm64 de chaque image
+        run: |
+          # Le cluster est un Raspberry Pi 5 : les 4 charts epinglent
+          # nodeSelector kubernetes.io/arch=arm64, et argocd-image-updater
+          # pousse des montees de version SANS relecture humaine.
+          # Un tag publie sans variante arm64 passerait tous les autres jobs
+          # au vert et finirait en ImagePullBackOff sur la machine.
+          mapfile -t images < <(
+            for chart in charts/*/; do helm template "$chart"; done \
+              | grep -oE '^[[:space:]]+image:[[:space:]]*.*' \
+              | sed -E 's/.*image:[[:space:]]*//; s/^"//; s/"$//' \
+              | sort -u
+          )
+          if [[ ${#images[@]} -eq 0 ]]; then
+            echo "::error::Aucune image extraite des charts — extraction cassee"
+            exit 1
+          fi
+          printf 'Images a verifier (%d) :\n' "${#images[@]}"
+          printf '  %s\n' "${images[@]}"
 
-      - name: Kubescape scan
-        uses: kubescape/github-action@main
-        continue-on-error: true
-        with:
-          files: "charts/"
-          frameworks: "NSA"
-          severityThreshold: "critical"
+          rc=0
+          for img in "${images[@]}"; do
+            out=""
+            for try in 1 2 3; do
+              out=$(docker buildx imagetools inspect "$img" 2>&1) && break
+              out=""
+              echo "  tentative $try infructueuse pour $img"
+              sleep $(( try * 5 ))
+            done
+            if [[ -z $out ]]; then
+              echo "::error::$img : inspection impossible (registre injoignable ou tag inexistant)"
+              rc=1
+            elif grep -q 'linux/arm64' <<<"$out"; then
+              echo "  OK    $img"
+            else
+              echo "::error::$img n'a pas de variante linux/arm64 → ImagePullBackOff sur le Pi 5"
+              rc=1
+            fi
+          done
+          exit $rc
 
-      - name: Checkov scan
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: charts/
-          framework: kubernetes
-          quiet: true
-          soft_fail: true
+# NOTE — le job "Security Scan (Informational)" a ete supprime.
+# Il etait neutralise quatre fois (continue-on-error au niveau du job,
+# exit-code: 0 sur Trivy, continue-on-error sur Kubescape, soft_fail sur
+# Checkov) : il ne pouvait donc RIEN signaler, et executait au passage du code
+# tiers non epingle (trivy-action@master, kubescape@main) sur un depot dont
+# l'acces en ecriture vaut execution de code dans le cluster.
+# La couverture securite reste assuree par kube-linter, qui lui a des dents
+# et une configuration (.kube-linter.yaml).

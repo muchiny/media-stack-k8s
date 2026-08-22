@@ -4,7 +4,7 @@ SonarQube Community Build + PostgreSQL, namespace dédié `sonarqube`.
 
 | Élément | Valeur |
 |---|---|
-| Image | `sonarqube:26.8.0-community` (arm64 disponible) |
+| Image | `sonarqube:26.8.0.126808-community` (arm64 disponible) |
 | Base de données | PostgreSQL 17 (StatefulSet, PVC `local-path`) |
 | Accès | `http://sonarqube.local/` via Traefik, ou `port-forward` sur 9000 |
 | Identifiants initiaux | `admin` / `admin` (changement forcé) |

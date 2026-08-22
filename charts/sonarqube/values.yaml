@@ -9,7 +9,7 @@ replicaCount: 1
 
 image:
   repository: sonarqube
-  tag: 26.8.0-community
+  tag: 26.8.0.126808-community
   pullPolicy: IfNotPresent
 
 # Secret de type kubernetes.io/dockerconfigjson pour dhi.io (cf. README.md).

@@ -7,7 +7,8 @@ Image : {{ .Values.image.repository }}:{{ .Values.image.tag }}
 
 2. Acces UI :
 {{- if .Values.ingress.enabled }}
-     http://{{ .Values.ingress.host }}/   (ajouter "192.168.1.51 {{ .Values.ingress.host }}" dans /etc/hosts)
+     http://{{ .Values.ingress.host }}:30090/   (Traefik est en NodePort 30090 sur ce cluster ;
+     ajouter "192.168.1.51 {{ .Values.ingress.host }}" dans /etc/hosts)
 {{- end }}
      kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "sonarqube.fullname" . }} 9000:{{ .Values.service.port }}
 

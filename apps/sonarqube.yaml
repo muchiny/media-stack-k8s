@@ -20,6 +20,16 @@ spec:
     # Namespace dedie : SonarQube n'est pas de la stack media et ne doit pas
     # consommer le ResourceQuota ni les PriorityClass de media-stack.
     namespace: sonarqube
+  # Le serveur API renseigne apiVersion/kind/volumeMode/status dans les
+  # volumeClaimTemplates du StatefulSet : sans cela l'app reste OutOfSync en
+  # permanence et selfHeal reapplique le manifeste en boucle.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: sonarqube-postgres
+      namespace: sonarqube
+      jsonPointers:
+        - /spec/volumeClaimTemplates
   syncPolicy:
     automated:
       prune: true

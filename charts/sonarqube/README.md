@@ -6,7 +6,7 @@ SonarQube Community Build + PostgreSQL, namespace dédié `sonarqube`.
 |---|---|
 | Image | `sonarqube:26.8.0.126808-community` (arm64 disponible) |
 | Base de données | PostgreSQL 17 (StatefulSet, PVC `local-path`) |
-| Accès | `http://sonarqube.local:30090/` (Traefik en NodePort), ou `port-forward` sur 9000 |
+| Accès | `http://192.168.1.51:30900/` (NodePort direct) ou `http://sonarqube.local:30090/` (Traefik) |
 | Identifiants initiaux | `admin` / `admin` (changement forcé) |
 | Namespace | `sonarqube` — **hors** `media-stack`, donc hors ResourceQuota média |
 
@@ -62,6 +62,44 @@ instance déjà peuplée, rechown avant bascule :
 
 ```bash
 sudo chown -R 65532:65532 /var/lib/rancher/k3s/storage/*sonarqube-{data,extensions,logs}*
+```
+
+## 🦀 Analyse d'un projet Rust
+
+L'analyseur `sonar-rust-plugin` est **inclus** dans cette version (85 règles, 78 actives
+dans le profil `Sonar way` par défaut). Rien à installer côté serveur.
+
+L'analyse tourne sur le **PC de dev**, pas sur le Pi : `sonar-scanner` lit les sources,
+télécharge l'analyseur depuis le serveur et pousse le rapport. Le Pi n'exécute que le
+Compute Engine.
+
+`sonar-project.properties` à la racine du projet Rust :
+
+```properties
+sonar.projectKey=bridge-mcp
+sonar.projectName=bridge-mcp
+sonar.sources=src,crates,benches
+sonar.tests=tests
+sonar.host.url=http://192.168.1.51:30900
+
+# Workspace Cargo : declarer chaque manifeste
+sonar.rust.cargo.manifestPaths=Cargo.toml,crates/bridge-mcp-macros/Cargo.toml
+
+# Clippy : l'analyseur peut lancer cargo clippy lui-meme...
+sonar.rust.clippy.enabled=true
+# ...ou importer un rapport deja produit en CI :
+# sonar.rust.clippyReport.reportPaths=target/clippy.json
+
+# Couverture (cargo-llvm-cov --lcov)
+sonar.rust.lcov.reportPaths=target/lcov.info
+```
+
+Lancement depuis le PC de dev :
+
+```bash
+export SONAR_TOKEN='<token-utilisateur>'
+cargo llvm-cov --workspace --lcov --output-path target/lcov.info   # optionnel
+sonar-scanner
 ```
 
 ## 🧠 Dimensionnement

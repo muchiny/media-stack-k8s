@@ -60,8 +60,15 @@ persistence:
     size: 1Gi
 
 service:
-  type: ClusterIP
+  # NodePort : le scanner et le MCP tournent sur un PC de dev du LAN et
+  # attaquent http://192.168.1.51:30900 sans entete Host ni /etc/hosts.
+  type: NodePort
   port: 9000
+  nodePort: 30900
+
+# URL publique du serveur : sans elle, les liens renvoyes par l'API (et donc
+# par le MCP) pointent sur localhost:9000, injoignable depuis le PC de dev.
+serverBaseURL: http://192.168.1.51:30900
 
 ingress:
   enabled: true

@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sonarqube.fullname" . }}
+  labels:
+    {{- include "sonarqube.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  # RWO sur local-path : impossible de faire cohabiter deux pods sur les PVC.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "sonarqube.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sonarqube.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        # Attend Postgres : SonarQube quitte en erreur si la base est injoignable
+        # au demarrage et le CrashLoop repart pour 5 min de backoff.
+        - name: wait-for-db
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - until pg_isready -h {{ include "sonarqube.postgres.fullname" . }} -p 5432; do sleep 3; done
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            limits:
+              memory: 64Mi
+              cpu: 100m
+            requests:
+              memory: 16Mi
+              cpu: 10m
+      containers:
+        - name: sonarqube
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          env:
+            - name: SONAR_JDBC_URL
+              value: jdbc:postgresql://{{ include "sonarqube.postgres.fullname" . }}:5432/{{ .Values.postgres.database }}
+            - name: SONAR_JDBC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: username
+            - name: SONAR_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: password
+            - name: SONAR_WEB_JAVAOPTS
+              value: {{ .Values.javaOpts.web | quote }}
+            - name: SONAR_CE_JAVAOPTS
+              value: {{ .Values.javaOpts.ce | quote }}
+            - name: SONAR_SEARCH_JAVAOPTS
+              value: {{ .Values.javaOpts.search | quote }}
+          startupProbe:
+            httpGet:
+              path: /api/system/status
+              port: http
+            # Premier demarrage : migration de schema + indexation Elasticsearch.
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/system/status
+              port: http
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/system/liveness
+              port: http
+            periodSeconds: 30
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /opt/sonarqube/data
+            - name: extensions
+              mountPath: /opt/sonarqube/extensions
+            - name: logs
+              mountPath: /opt/sonarqube/logs
+            - name: temp
+              mountPath: /opt/sonarqube/temp
+      volumes:
+        {{- range $name, $cfg := .Values.persistence }}
+        {{- if kindIs "map" $cfg }}
+        - name: {{ $name }}
+          persistentVolumeClaim:
+            claimName: {{ include "sonarqube.fullname" $ }}-{{ $name }}
+        {{- end }}
+        {{- end }}
+        - name: temp
+          emptyDir: {}

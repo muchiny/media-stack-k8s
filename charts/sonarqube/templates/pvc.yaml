@@ -1,0 +1,17 @@
+{{- range $name, $cfg := .Values.persistence }}
+{{- if kindIs "map" $cfg }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "sonarqube.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "sonarqube.labels" $ | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $.Values.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ $cfg.size }}
+{{- end }}
+{{- end }}

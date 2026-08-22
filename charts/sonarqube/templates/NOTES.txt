@@ -1,0 +1,14 @@
+SonarQube {{ .Chart.AppVersion }} deploye dans le namespace {{ .Release.Namespace }}.
+
+Image : {{ .Values.image.repository }}:{{ .Values.image.tag }}
+
+1. Suivre le premier demarrage (migration de schema + indexation, plusieurs minutes) :
+     kubectl -n {{ .Release.Namespace }} logs -f deploy/{{ include "sonarqube.fullname" . }}
+
+2. Acces UI :
+{{- if .Values.ingress.enabled }}
+     http://{{ .Values.ingress.host }}/   (ajouter "192.168.1.51 {{ .Values.ingress.host }}" dans /etc/hosts)
+{{- end }}
+     kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "sonarqube.fullname" . }} 9000:{{ .Values.service.port }}
+
+3. Identifiants initiaux : admin / admin (changement force a la premiere connexion).

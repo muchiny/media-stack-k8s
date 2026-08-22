@@ -1,0 +1,100 @@
+# SonarQube Community Build sur K3s arm64 (Raspberry Pi 5)
+#
+# Image : par defaut l'image officielle Docker Hub (arm64 disponible).
+# Pour basculer sur la Docker Hardened Image (DHI), voir README.md :
+#   image.repository: dhi.io/sonarqube        (ou <org>/dhi-sonarqube si miroir)
+#   imagePullSecrets: [{name: dhi-registry}]
+
+replicaCount: 1
+
+image:
+  repository: sonarqube
+  tag: 26.8.0-community
+  pullPolicy: IfNotPresent
+
+# Secret de type kubernetes.io/dockerconfigjson pour dhi.io (cf. README.md).
+# Laisser vide tant qu'on utilise l'image publique Docker Hub.
+imagePullSecrets: []
+
+nodeSelector:
+  kubernetes.io/arch: arm64
+
+# SonarQube (Elasticsearch embarque) refuse de tourner en root.
+# uid/gid 1000 pour l'image officielle ; la DHI tourne en 65532 (nonroot).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# Heaps JVM bornes explicitement : sans cela les 3 JVM (web, compute engine,
+# search) se dimensionnent sur les 8 Gi du Pi et depassent la limite du pod.
+javaOpts:
+  web: "-Xmx512m -Xms128m"
+  ce: "-Xmx512m -Xms128m"
+  search: "-Xmx512m -Xms512m -XX:MaxDirectMemorySize=256m"
+
+resources:
+  limits:
+    memory: 3Gi
+    cpu: 2000m
+  requests:
+    memory: 1536Mi
+    cpu: 500m
+
+# Volumes via local-path (seule StorageClass du cluster).
+persistence:
+  storageClass: local-path
+  data:
+    size: 8Gi
+  extensions:
+    size: 2Gi
+  logs:
+    size: 1Gi
+
+service:
+  type: ClusterIP
+  port: 9000
+
+ingress:
+  enabled: true
+  host: sonarqube.local
+
+networkPolicy:
+  enabled: true
+
+postgres:
+  image:
+    repository: postgres
+    tag: "17.6-alpine"
+    pullPolicy: IfNotPresent
+  database: sonarqube
+  # Secret cree hors Git (cf. README.md), cles : username / password
+  existingSecret: sonarqube-db
+  persistence:
+    storageClass: local-path
+    size: 8Gi
+  resources:
+    limits:
+      memory: 512Mi
+      cpu: 1000m
+    requests:
+      memory: 128Mi
+      cpu: 50m
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+    fsGroup: 70
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL

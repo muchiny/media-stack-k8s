@@ -33,10 +33,21 @@ spec:
         - name: wait-for-db
           image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
           imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+          # -U/-d explicites : sans eux libpq resout l'UID du pod en nom
+          # d'utilisateur local, absent du /etc/passwd de l'image postgres,
+          # et pg_isready sort en rc=3 sans jamais tenter la connexion.
           command:
             - sh
             - -c
-            - until pg_isready -h {{ include "sonarqube.postgres.fullname" . }} -p 5432; do sleep 3; done
+            - until pg_isready -h {{ include "sonarqube.postgres.fullname" . }} -p 5432 -U "$PGUSER" -d "$PGDATABASE"; do sleep 3; done
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: username
+            - name: PGDATABASE
+              value: {{ .Values.postgres.database | quote }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           resources:

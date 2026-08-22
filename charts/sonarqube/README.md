@@ -64,6 +64,21 @@ instance déjà peuplée, rechown avant bascule :
 sudo chown -R 65532:65532 /var/lib/rancher/k3s/storage/*sonarqube-{data,extensions,logs}*
 ```
 
+## 🌐 URL publique du serveur
+
+`sonar.core.serverBaseURL` est un reglage **stocke en base**, pas une propriete
+process : le mapping `SONAR_*` du conteneur ne le prend pas (verifie, l'env var
+reste sans effet). Il se pose une fois via l'API et survit aux redemarrages :
+
+```bash
+curl -u admin:<mdp> -X POST http://192.168.1.51:30900/api/settings/set \
+  -d 'key=sonar.core.serverBaseURL' \
+  --data-urlencode 'value=http://192.168.1.51:30900'
+```
+
+Sans lui, les liens renvoyes par l'API - donc par le serveur MCP - pointent sur
+`localhost:9000`, injoignable depuis le PC de dev.
+
 ## 🦀 Analyse d'un projet Rust
 
 L'analyseur `sonar-rust-plugin` est **inclus** dans cette version (85 règles, 78 actives

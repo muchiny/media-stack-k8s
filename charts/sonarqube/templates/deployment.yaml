@@ -80,10 +80,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: password
-            {{- with .Values.serverBaseURL }}
-            - name: SONAR_CORE_SERVERBASEURL
-              value: {{ . | quote }}
-            {{- end }}
             - name: SONAR_WEB_JAVAOPTS
               value: {{ .Values.javaOpts.web | quote }}
             - name: SONAR_CE_JAVAOPTS

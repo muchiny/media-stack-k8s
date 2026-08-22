@@ -99,8 +99,10 @@ spec:
               port: http
             periodSeconds: 15
           livenessProbe:
+            # /api/system/liveness exige la permission "Administer System" et
+            # repond 403 en anonyme : le kubelet tuait le pod toutes les 3 min.
             httpGet:
-              path: /api/system/liveness
+              path: /api/system/status
               port: http
             periodSeconds: 30
             failureThreshold: 6

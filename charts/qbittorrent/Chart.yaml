@@ -3,7 +3,7 @@ name: qbittorrent
 description: qBittorrent with anti-seeding configuration
 type: application
 version: 1.0.0
-appVersion: "5.1.4"
+appVersion: "5.2.3"
 maintainers:
   - name: muchiny
     url: https://github.com/muchiny

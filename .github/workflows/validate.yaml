@@ -30,6 +30,13 @@ env:
   # Sans eux il fallait -ignore-missing-schemas, qui les sautait EN SILENCE.
   CRD_BASE: "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main"
   CRD_TPL: "{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+  # Schemas locaux, consultes AVANT le catalogue distant. Necessaire pour
+  # ImageUpdater : le catalogue en est reste a une v1.0 ou spec.namespace
+  # etait obligatoire, alors que la v1.3.0 l'a supprime et rejette tout CR
+  # qui le porte. Valider contre le catalogue exigerait donc d'ecrire un
+  # manifeste que le cluster refuse. Le fichier est genere depuis le CRD
+  # installe ; a regenerer lors d'une montee d'argocd-image-updater.
+  CRD_LOCAL: ".github/crd-schemas"
   # Doit suivre la version reelle du cluster (k3s sur le Pi 5).
   K8S_VERSION: "1.36.1"
 
@@ -97,6 +104,7 @@ jobs:
               -strict -summary \
               -kubernetes-version "${K8S_VERSION}" \
               -schema-location default \
+              -schema-location "${CRD_LOCAL}/${CRD_TPL}" \
               -schema-location "${CRD_BASE}/${CRD_TPL}"
             echo "::endgroup::"
           done
@@ -110,6 +118,7 @@ jobs:
             -strict -summary \
             -kubernetes-version "${K8S_VERSION}" \
             -schema-location default \
+            -schema-location "${CRD_LOCAL}/${CRD_TPL}" \
             -schema-location "${CRD_BASE}/${CRD_TPL}" \
             apps/ base/
 

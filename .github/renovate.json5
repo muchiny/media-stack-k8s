@@ -1,5 +1,5 @@
 // Renovate configuration for media-stack-k8s
-// Complements ArgoCD Image Updater (which manages plex, qbittorrent, dnscrypt-proxy)
+// Complements ArgoCD Image Updater (which manages plex and qbittorrent)
 // Renovate handles: utility images, GitHub Actions, and CI tool versions
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -30,10 +30,9 @@
   "enabledManagers": ["github-actions", "helm-values", "regex"],
 
   // ── Ignore images managed by ArgoCD Image Updater ─────────────────────────
-  // These 3 images are tracked by Image Updater annotations in apps/*.yaml
+  // These 2 images are tracked by Image Updater annotations in apps/*.yaml
   // Renovate must NOT touch them to avoid conflicts
   "ignoreDeps": [
-    "klutchell/dnscrypt-proxy",
     "lscr.io/linuxserver/plex",
     "lscr.io/linuxserver/qbittorrent"
   ],

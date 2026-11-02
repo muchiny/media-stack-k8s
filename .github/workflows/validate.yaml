@@ -172,6 +172,30 @@ jobs:
           done
           exit $rc
 
+  # SonarQube Cloud (analyse pilotee par la CI, reglages dans
+  # sonar-project.properties). Les PR de forks et de bots n'ont pas acces a
+  # SONAR_TOKEN : le job est saute pour elles. Action tierce epinglee par SHA
+  # car ce job manipule un secret.
+  sonar:
+    name: SonarQube Cloud
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          # Historique complet : Sonar a besoin du blame pour distinguer le
+          # nouveau code de l'ancien.
+          fetch-depth: 0
+
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9  # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
 # NOTE — le job "Security Scan (Informational)" a ete supprime.
 # Il etait neutralise quatre fois (continue-on-error au niveau du job,
 # exit-code: 0 sur Trivy, continue-on-error sur Kubescape, soft_fail sur

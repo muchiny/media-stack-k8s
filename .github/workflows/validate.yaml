@@ -92,7 +92,10 @@ jobs:
         if: steps.cache-kubeconform.outputs.cache-hit != 'true'
         run: |
           TARBALL="kubeconform-linux-amd64.tar.gz"
-          wget -q "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/${TARBALL}"
+          # La release GitHub redirige vers objects.githubusercontent.com :
+          # redirections suivies, mais uniquement en HTTPS (--proto).
+          curl -fsSL --proto '=https' --tlsv1.2 -o "${TARBALL}" \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/${TARBALL}"
           tar xf "${TARBALL}"
           sudo mv kubeconform /usr/local/bin/
 

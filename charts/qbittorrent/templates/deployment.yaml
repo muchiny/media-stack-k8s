@@ -16,6 +16,8 @@ spec:
       labels:
         {{- include "qbittorrent.selectorLabels" . | nindent 8 }}
     spec:
+      # Le pod n'appelle jamais l'API Kubernetes : pas de jeton monte.
+      automountServiceAccountToken: false
       # DNS du cluster par defaut (CoreDNS -> /etc/resolv.conf de l'hote)
       dnsPolicy: ClusterFirst
       {{- if .Values.priorityClassName }}

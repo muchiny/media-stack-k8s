@@ -16,6 +16,8 @@ spec:
       labels:
         {{- include "plex.selectorLabels" . | nindent 8 }}
     spec:
+      # Le pod n'appelle jamais l'API Kubernetes : pas de jeton monte.
+      automountServiceAccountToken: false
       hostNetwork: {{ .Values.hostNetwork }}
       dnsPolicy: ClusterFirstWithHostNet
       {{- if .Values.priorityClassName }}

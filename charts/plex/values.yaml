@@ -27,8 +27,13 @@ environment:
 resources:
   limits:
     memory: 4Gi
+    # Disque local du conteneur (rootfs + logs) : ~1 Mi mesure le
+    # 2026-11-03. La limite protege le / du Pi, la requete classe le pod
+    # parmi les derniers expulses en cas de DiskPressure (cf. 26/09).
+    ephemeral-storage: 1Gi
     cpu: 3500m
   requests:
+    ephemeral-storage: 64Mi
     memory: 1Gi
     cpu: 1000m
 priorityClassName: media-high

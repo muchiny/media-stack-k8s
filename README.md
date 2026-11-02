@@ -38,7 +38,7 @@ graph TB
 
 | Service | Description | Port | Namespace | Statut |
 |---------|-------------|------|-----------|--------|
-| 🎥 Plex | Media Server avec transcodage HW | 32400 (hostNetwork) | media-stack | ✅ |
+| 🎥 Plex | Media Server (transcodage logiciel) | 32400 (hostNetwork) | media-stack | ✅ |
 | ⬇️ qBittorrent | Client torrent (anti-seeding) | 8080 (hostPort) | media-stack | ✅ |
 
 ## 🔧 Déploiement

@@ -4,8 +4,12 @@ image:
   tag: 1.43.5
   pullPolicy: IfNotPresent
 hostNetwork: true
+# Desactive le 2026-11-03 : le Pi 5 n'a pas d'encodeur video materiel
+# (/dev/dri = GPU 3D v3d + affichage vc4) et Plex ne sait transcoder en
+# materiel qu'avec Intel/NVIDIA/AMD. Plex n'ouvrait jamais /dev/dri ; ce
+# drapeau ne servait qu'a rendre le conteneur privileged (kubernetes:S6428).
 gpu:
-  enabled: true
+  enabled: false
 persistence:
   config:
     hostPath: /home/muchini/media-data/config/plex

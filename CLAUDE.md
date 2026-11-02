@@ -64,7 +64,7 @@ mindmap
     🎥 Plex
       hostNetwork: true
       Découverte DLNA/GDM
-      privileged pour /dev/dri
+      Transcodage logiciel, sans privileged
     ⬇️ qBittorrent
       Init container
       Attend le DNS du cluster
@@ -185,7 +185,7 @@ flowchart LR
     end
 
     subgraph "✅ REQUIS"
-        D[✔️ Plex privileged: true]
+        D[✔️ Plex hostNetwork: true]
         E[✔️ selfHeal: true]
         F[✔️ hostPath volumes]
     end
@@ -196,7 +196,7 @@ flowchart LR
 | 🚫 **NE PAS** | Ajouter les services *arr (Radarr, Sonarr, etc.) - intentionnellement exclus |
 | ⚠️ **DÉCISION** | Le partage qBittorrent est **activé** depuis le 2026-08-09 (`hostPort: 6881`). Le choix précédent de le bloquer a été levé volontairement. Nécessite une redirection 6881 TCP+UDP sur la box pour être effectif. |
 | ⚠️ **ATTENTION** | Aucun VPN sur qBittorrent — choix assumé. L'IP publique du domicile est donc visible dans les swarms. |
-| ✅ **REQUIS** | Plex `privileged: true` pour transcodage HW via `/dev/dri` |
+| ⚠️ **DÉCISION** | Plex tourne **sans** `privileged` depuis le 2026-11-03 (`gpu.enabled: false`). Le Pi 5 n'a pas d'encodeur vidéo matériel utilisable par Plex : le transcodage est logiciel, `/dev/dri` n'était jamais ouvert. Ne pas réactiver sans matériel compatible (Intel/NVIDIA/AMD). |
 | ⚠️ **ATTENTION** | Toutes les apps ont `selfHeal: true` - les changements kubectl manuels seront annulés |
 
 ## 📂 Chemins des volumes

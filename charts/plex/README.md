@@ -56,9 +56,9 @@ image:
 # ⚠️ Requis pour découverte DLNA/GDM
 hostNetwork: true
 
-# ⚡ Transcodage matériel
+# 🎮 Accès /dev/dri (rend le conteneur privileged) : inutile sur Pi 5
 gpu:
-  enabled: true  # Accès à /dev/dri
+  enabled: false
 
 persistence:
   config:
@@ -93,13 +93,12 @@ nodeSelector:
 ```mermaid
 flowchart TB
     subgraph "📦 Deployment"
-        Pod[🐳 Pod plex<br/>privileged: true]
+        Pod[🐳 Pod plex<br/>non privilégié]
 
         subgraph "Volumes"
             V1[📁 /config<br/>hostPath]
             V2[🎬 /media<br/>hostPath RO]
             V3[⚡ /transcode<br/>emptyDir RAM]
-            V4[🎮 /dev/dri<br/>GPU access]
         end
     end
 
@@ -107,31 +106,23 @@ flowchart TB
         Port[🌐 Port 32400]
     end
 
-    Pod --> V1 & V2 & V3 & V4
+    Pod --> V1 & V2 & V3
     Pod -.->|"hostNetwork"| Port
 ```
 
-## 🖥️ Transcodage matériel
+## 🖥️ Transcodage
 
-```mermaid
-graph LR
-    subgraph "🎮 Raspberry Pi 5 GPU"
-        DRI[/dev/dri/renderD128]
-        Card[/dev/dri/card1]
-    end
-
-    subgraph "🎥 Plex"
-        HW[Hardware Transcoding<br/>H.264/H.265]
-    end
-
-    DRI & Card -->|"privileged"| HW
-```
+Le transcodage est **logiciel** (CPU). Le Pi 5 n'a pas d'encodeur vidéo
+matériel : `/dev/dri` n'expose que le GPU 3D (v3d) et l'affichage (vc4), que
+Plex n'utilise pas (il ne gère que Intel Quick Sync, NVIDIA et AMD).
+`gpu.enabled: true` monterait `/dev/dri` mais rendrait le conteneur
+`privileged` : ne l'activer que sur du matériel compatible.
 
 ## ⚠️ Points critiques
 
 | ⚠️ | Description |
 |----|-------------|
-| 🔒 | **privileged: true** - Requis pour accès GPU `/dev/dri` |
+| 🔒 | **Non privilégié** - `gpu.enabled: false`, aucun accès à `/dev/dri` |
 | 🌐 | **hostNetwork: true** - Requis pour découverte DLNA/GDM |
 | ⚡ | **emptyDir Memory** - Transcodage en RAM pour performance |
 | 📁 | **Media readOnly** - Protection contre modifications accidentelles |
@@ -155,6 +146,4 @@ kubectl logs -n media-stack -l app=plex -f
 # 🌐 Accéder à l'interface
 # http://192.168.1.51:32400/web
 
-# 🎮 Vérifier l'accès GPU
-kubectl exec -n media-stack -l app=plex -- ls -la /dev/dri/
 ```

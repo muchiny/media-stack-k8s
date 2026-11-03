@@ -6,8 +6,8 @@ metadata:
   labels:
     {{- include "qbittorrent.labels" . | nindent 4 }}
 spec:
+  # HTTPS uniquement : en HTTP le mot de passe passerait en clair.
   entryPoints:
-    - web
     - websecure
   routes:
     - match: Host(`{{ .Values.ingress.host }}`)
@@ -15,4 +15,7 @@ spec:
       services:
         - name: {{ include "qbittorrent.fullname" . }}-webui
           port: {{ .Values.service.webui.port }}
+          # qBittorrent refuse un Host dont le port differe du sien (8080) :
+          # avec le Host d'origine (qbit.local:30453), il repondait 401.
+          passHostHeader: false
 {{- end }}

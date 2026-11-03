@@ -81,3 +81,39 @@ résolveur public = requêtes en clair, donc problème.
 | ✅ | Ton FAI ne voit plus **quels domaines** tu résous |
 | ❌ | Il voit toujours les **adresses IP** que tu contactes |
 | ❌ | Cloudflare, lui, voit toujours tout — c'est un déplacement de confiance, pas une suppression |
+
+---
+
+# 🔀 Traefik : celui de k3s
+
+Depuis le 2026-11-03, le Traefik du cluster est **celui intégré à k3s**. Il suit
+donc les montées de version de k3s (k3s v1.36.5 → Traefik 3.7.13). Avant cette
+date, un Traefik 3.6.8 installé à la main par Helm (février 2026, `--disable
+traefik` côté k3s) n'était mis à jour par personne.
+
+Sa configuration est dans [`traefik-config.yaml`](traefik-config.yaml) (un
+`HelmChartConfig`), copié à la main dans
+`/var/lib/rancher/k3s/server/manifests/traefik-config.yaml` :
+
+- **NodePorts 30090 (HTTP) et 30453 (HTTPS)** : `servicelb` reste désactivé, donc
+  pas de `LoadBalancer`. Le pare-feu `homelab_fw` ne les ouvre qu'au LAN.
+- **Seules les IngressRoutes de `media-stack`** sont servies, sans Ingress classique.
+- **RBAC par namespace** : Traefik ne lit les Secrets que de `kube-system` et
+  `media-stack`. Il ne peut plus lire `argocd/git-creds`.
+
+Modifier la configuration : éditer ce fichier, puis
+`sudo install -m 600 k3s/traefik-config.yaml /var/lib/rancher/k3s/server/manifests/`.
+k3s relance l'installation Helm tout seul.
+
+Vérifier :
+
+```bash
+kubectl get helmchart,helmchartconfig -n kube-system
+kubectl auth can-i get secret/git-creds -n argocd \
+  --as=system:serviceaccount:kube-system:traefik   # → no
+curl -sk -o /dev/null -w '%{http_code}\n' --resolve plex.local:30453:192.168.1.51 \
+  https://plex.local:30453/identity                # → 200
+```
+
+⚠️ **Ne pas remettre `--disable traefik`** dans `/etc/systemd/system/k3s.service` :
+k3s désinstallerait son Traefik.

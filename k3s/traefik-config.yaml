@@ -1,0 +1,44 @@
+# Configuration du Traefik integre a k3s (HelmChartConfig).
+# Deploye a la main dans /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
+# (kube-system est hors du perimetre d'ArgoCD) ; ce fichier en est la reference.
+#
+# Depuis le 2026-11-03, Traefik est celui de k3s : il suit les montees de
+# version de k3s (v1.36.5 -> Traefik 3.7.13). Avant, un Traefik 3.6.8 installe
+# a la main par Helm (fevrier 2026) n'etait mis a jour par personne.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    # servicelb est desactive : pas de LoadBalancer, on garde les NodePorts
+    # historiques (le pare-feu homelab_fw ne les ouvre qu'au LAN).
+    service:
+      spec:
+        type: NodePort
+    ports:
+      web:
+        nodePort: 30090
+      websecure:
+        nodePort: 30453
+    # Seules les IngressRoutes de media-stack sont servies. Pas d'Ingress
+    # classiques (aucun dans le cluster).
+    providers:
+      kubernetesCRD:
+        namespaces:
+          - media-stack
+      kubernetesIngress:
+        enabled: false
+    # RBAC par namespace : Traefik ne lit les Secrets que de kube-system et
+    # media-stack. L'ancien ClusterRole lui donnait tous les Secrets du
+    # cluster, dont le jeton Git d'ArgoCD.
+    rbac:
+      namespaced: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

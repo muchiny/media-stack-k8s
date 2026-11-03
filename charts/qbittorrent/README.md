@@ -193,5 +193,5 @@ kubectl logs -n media-stack -l app=qbittorrent -c wait-for-dns
 
 # 🌐 Accéder à l'interface
 # http://192.168.1.51:8080 (via hostPort)
-# Login par défaut: admin / adminadmin
+# Identifiants : ceux définis dans la WebUI (ne jamais les écrire ici)
 ```

@@ -26,6 +26,13 @@ defaults:
     shell: bash
 
 env:
+  # Helm de la CI = celui embarque par ArgoCD, qui fait le vrai rendu en
+  # production. Source de verite : kubectl -n argocd exec
+  # deploy/argocd-repo-server -- helm version --short (v3.5.x -> v4.2.1).
+  # A changer avec chaque montee ArgoCD (la 3.6 embarque 4.3.1). Sans
+  # "version", azure/setup-helm prend "latest" : la CI changeait de Helm en
+  # silence (et retombait sur v3.18.4 si get.helm.sh ne repondait pas).
+  HELM_VERSION: "v4.2.1"
   # Schemas des CRD utilisees ici (traefik.io/IngressRoute, argoproj.io/Application).
   # Sans eux il fallait -ignore-missing-schemas, qui les sautait EN SILENCE.
   CRD_BASE: "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main"
@@ -38,7 +45,7 @@ env:
   # installe ; a regenerer lors d'une montee d'argocd-image-updater.
   CRD_LOCAL: ".github/crd-schemas"
   # Doit suivre la version reelle du cluster (k3s sur le Pi 5).
-  K8S_VERSION: "1.36.4"
+  K8S_VERSION: "1.36.5"
 
 jobs:
   lint:
@@ -54,6 +61,8 @@ jobs:
 
       - name: Setup Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310  # v5.0.1
+        with:
+          version: ${{ env.HELM_VERSION }}
 
       - name: Helm Lint
         run: |
@@ -68,6 +77,9 @@ jobs:
         with:
           directory: charts/
           config: .kube-linter.yaml
+          # Sans "version", l'action telecharge la release "latest" de
+          # kube-linter a chaque run : outil non epingle.
+          version: v0.8.3
 
   validate:
     name: Validate K8s Schemas
@@ -75,18 +87,23 @@ jobs:
     env:
       # renovate: datasource=github-releases depName=yannh/kubeconform
       KUBECONFORM_VERSION: "v0.8.0"
+      # sha256 de kubeconform-linux-amd64.tar.gz (fichier CHECKSUMS de la
+      # release). A changer AVEC la version, sinon l'installation echoue.
+      KUBECONFORM_SHA256: "9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Setup Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310  # v5.0.1
+        with:
+          version: ${{ env.HELM_VERSION }}
 
       - name: Cache kubeconform
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         id: cache-kubeconform
         with:
           path: /usr/local/bin/kubeconform
-          key: kubeconform-${{ env.KUBECONFORM_VERSION }}
+          key: kubeconform-${{ env.KUBECONFORM_VERSION }}-${{ env.KUBECONFORM_SHA256 }}
 
       - name: Install kubeconform
         if: steps.cache-kubeconform.outputs.cache-hit != 'true'
@@ -96,6 +113,7 @@ jobs:
           # redirections suivies, mais uniquement en HTTPS (--proto).
           curl -fsSL --proto '=https' --tlsv1.2 -o "${TARBALL}" \
             "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/${TARBALL}"
+          echo "${KUBECONFORM_SHA256}  ${TARBALL}" | sha256sum -c -
           tar xf "${TARBALL}"
           sudo mv kubeconform /usr/local/bin/
 
@@ -133,6 +151,8 @@ jobs:
 
       - name: Setup Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310  # v5.0.1
+        with:
+          version: ${{ env.HELM_VERSION }}
 
       - name: Verifier la variante linux/arm64 de chaque image
         run: |
@@ -195,7 +215,7 @@ jobs:
           fetch-depth: 0
 
       - name: SonarQube scan
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9  # v8.3.0
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304  # v8.4.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 

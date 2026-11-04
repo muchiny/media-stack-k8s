@@ -172,3 +172,78 @@ curl -sk -o /dev/null -w '%{http_code}\n' --resolve plex.local:30453:192.168.1.5
 
 ⚠️ **Ne pas remettre `--disable traefik`** dans `/etc/systemd/system/k3s.service` :
 k3s désinstallerait son Traefik.
+
+---
+
+# 🔑 Secrets chiffrés au repos et kubeconfig
+
+Depuis le 2026-11-04, `/etc/rancher/k3s/config.yaml` contient :
+
+```yaml
+write-kubeconfig-mode: "0640"     # k3s.yaml lisible par root et le groupe muchini
+write-kubeconfig-group: "muchini"
+secrets-encryption: true          # Secrets chiffres (aescbc) dans state.db
+```
+
+`--write-kubeconfig-mode 644` a été retiré de `k3s.service` : la ligne de
+commande l'emporterait sur ce fichier.
+
+⚠️ **Ne jamais retirer `secrets-encryption: true`** : l'API ne pourrait plus
+lire les Secrets. Pour désactiver : `k3s secrets-encrypt disable`, redémarrage,
+puis `k3s secrets-encrypt reencrypt --force --skip`.
+
+Vérifier :
+
+```bash
+sudo k3s secrets-encrypt status   # Enabled / reencrypt_finished / All hashes match
+stat -c '%a %U:%G' /etc/rancher/k3s/k3s.yaml   # 640 root:muchini
+```
+
+## Pourquoi deux `rotate-keys` à la mise en place
+
+kine garde, pour chaque clé, la valeur précédente dans la colonne `old_value`.
+Après la première rotation, les Secrets vivants étaient chiffrés mais leur
+`old_value` restait en clair. La seconde rotation a réécrit chaque Secret :
+`old_value` est alors chiffré lui aussi. Les anciennes révisions disparaissent
+ensuite par la compaction de kine (environ 30 min). Les copies nocturnes
+utilisent `VACUUM INTO`, qui ne recopie pas les pages libérées
+(voir [`host/`](../host/README.md)).
+
+Compter sans rien afficher (attendu : 0) :
+
+```bash
+sudo sqlite3 -readonly /var/lib/rancher/k3s/server/db/state.db \
+  "SELECT count(*) FROM kine WHERE instr(value, X'0276311206536563726574')>0
+   OR instr(old_value, X'0276311206536563726574')>0;"
+```
+
+## Clés et restauration
+
+- Clé de chiffrement : `/var/lib/rancher/k3s/server/cred/encryption-config.json`.
+  Copies **datées** dans `/var/backups/homelab/k3s-cles/` (root 700). Chaque
+  `rotate-keys` retire l'ancienne clé : une copie de `state.db` antérieure à une
+  rotation ne se lit qu'avec la clé de l'époque. **Ajouter** une copie datée
+  après chaque rotation, ne jamais écraser les précédentes.
+- Jeton serveur : `/var/lib/rancher/k3s/server/token`, copie
+  `/var/backups/homelab/k3s-cles/server-token`. Il chiffre le blob
+  `/bootstrap` de `state.db` (CA et clé de chiffrement). **Sans lui, une copie de
+  `state.db` n'est pas restaurable.**
+- Tout est sur le même NVMe : une copie **hors site** du jeton et des clés est
+  indispensable (gestionnaire de mots de passe, clé USB chiffrée). Jamais dans
+  ce dépôt.
+
+Restaurer une copie de `/var/backups/homelab/db/k3s-state-*.db.gz` :
+
+```bash
+sudo systemctl stop k3s
+cd /var/lib/rancher/k3s/server/db
+sudo mkdir -p /var/backups/homelab/restauration && sudo mv state.db* /var/backups/homelab/restauration/
+sudo sh -c 'zcat /var/backups/homelab/db/k3s-state-AAAAMMJJ-HHMMSS.db.gz > state.db'
+sudo systemctl start k3s
+```
+
+Si k3s refuse de démarrer avec « newer than datastore … Remove the file(s)
+from disk » : les fichiers `cred/` sont plus récents que la copie. Déplacer
+`cred/encryption-config.json` et `cred/encryption-state.json` hors du dossier :
+k3s les recrée depuis la copie grâce au jeton. Autre possibilité : remettre la
+copie datée de la clé qui correspond à la date de la sauvegarde.

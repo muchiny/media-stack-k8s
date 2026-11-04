@@ -13,11 +13,21 @@
 #      survivre a la panne qu'elle est censee couvrir.
 
 set -uo pipefail
+# Les copies du datastore k3s contiennent l'etat complet du cluster : lisibles
+# par root seul.
+umask 077
 
-DEST="${DEST:-/home/muchini/backups/db}"
+# Destination sous /var/backups/homelab (root) depuis le 2026-11-04, et non
+# plus sous /home/muchini/backups : ce dossier appartient a l'UID 1000 et il
+# est monte en ecriture dans le pod media-backup, qui pouvait y remplacer db/
+# (lien symbolique suivi par chmod et sqlite3 lances en root).
+DEST="${DEST:-/var/backups/homelab/db}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 STAMP=$(date +%Y%m%d-%H%M%S)
-mkdir -p "$DEST"
+if [[ -L $DEST ]] || { [[ -e $DEST ]] && [[ $(stat -c %u "$DEST") != 0 ]]; }; then
+  echo "ECHEC : $DEST est un lien symbolique ou n'appartient pas a root" >&2; exit 1
+fi
+mkdir -p "$DEST" && chmod 700 "$DEST" || { echo "ECHEC : $DEST inutilisable" >&2; exit 1; }
 
 rc=0
 
@@ -37,12 +47,20 @@ verify() { # $1=fichier
   [[ ${pages:-0} -gt 0 && ${tables:-0} -gt 0 ]]
 }
 
-save() { # $1=libelle  $2=chemin de la base
-  local name=$1 src=$2 out="$DEST/$1-$STAMP.db"
+save() { # $1=libelle  $2=chemin de la base  [$3=vacuum]
+  local name=$1 src=$2 out="$DEST/$1-$STAMP.db" cmd
+  cmd=".backup '$out'"
+  # VACUUM INTO : meme instantane coherent que .backup, mais SANS les pages
+  # libres, qui gardent d'anciennes valeurs (Secrets en clair d'avant le
+  # chiffrement). Reserve au datastore k3s : sur Plex, VACUUM reconstruirait
+  # les index FTS dont le tokenizer "collating" est inconnu de ce sqlite3.
+  [[ ${3:-} == vacuum ]] && cmd="VACUUM INTO '$out'"
   if [[ ! -f $src ]]; then echo "  IGNORE  $name (introuvable)"; return; fi
+  # VACUUM INTO ecrirait dans un fichier deja present en gardant son mode.
+  if [[ -e $out || -L $out ]]; then echo "  ECHEC   $name : $out existe deja"; rc=1; return; fi
   # .backup utilise l'API de sauvegarde en ligne : instantane coherent d'une
   # base VIVANTE, sans verrou exclusif ni arret du service.
-  if sqlite3 -readonly "$src" ".backup '$out'" 2>/dev/null && verify "$out"; then
+  if sqlite3 -readonly "$src" "$cmd" 2>/dev/null && verify "$out"; then
     gzip -f "$out"
     echo "  OK      $name -> $(basename "$out").gz ($(du -h "$out.gz" | cut -f1))"
   else
@@ -53,7 +71,7 @@ save() { # $1=libelle  $2=chemin de la base
 echo "Sauvegarde des bases — $STAMP"
 
 # Datastore k3s : etat complet du cluster + secrets
-save k3s-state /var/lib/rancher/k3s/server/db/state.db
+save k3s-state /var/lib/rancher/k3s/server/db/state.db vacuum
 
 # Bases Plex : bibliotheque et vignettes
 P="/home/muchini/media-data/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases"

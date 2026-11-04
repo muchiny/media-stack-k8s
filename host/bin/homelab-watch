@@ -9,6 +9,14 @@
 # Machine a etats anti-spam : une anomalie doit persister GRACE secondes avant
 # d'alerter, puis rappel toutes les REMINDER secondes, puis message de
 # retablissement quand elle disparait.
+#
+# Usage :
+#   homelab-watch [--dry-run] [--heartbeat]   passage normal (timer, 10 min)
+#   homelab-watch [--dry-run] --unit-failed <unite>
+#                    appele par homelab-notify@<unite>.service (OnFailure=)
+# --dry-run   n'envoie rien, affiche les notifications sur la sortie standard
+# --heartbeat force le battement de coeur quotidien, quelle que soit l'heure
+# Tester sans polluer l'etat reel : STATE_DIR=<dossier jetable> CONF=/dev/null
 
 set -uo pipefail
 
@@ -24,23 +32,63 @@ NTFY_TOPIC="${NTFY_TOPIC:-}"
 REMINDER="${REMINDER:-21600}"     # 6 h
 DISK_MAX="${DISK_MAX:-90}"        # %
 TEMP_MAX="${TEMP_MAX:-80}"        # °C
+HEARTBEAT_HOUR="${HEARTBEAT_HOUR:-9}"                 # heure locale du message quotidien
+DB_BACKUP_DIR="${DB_BACKUP_DIR:-/var/backups/homelab/db}"
+DB_BACKUP_MAX_AGE="${DB_BACKUP_MAX_AGE:-129600}"      # 36 h
 
 NOW=$(date +%s)
 mkdir -p "$STATE_DIR"; touch "$STATE"
 NEWSTATE=$(mktemp); trap 'rm -f "$NEWSTATE"' EXIT
 
-DRY=0; [[ ${1:-} == --dry-run ]] && DRY=1
+DRY=0; FORCE_HB=0; FAILED_UNIT=""
+while (( $# )); do
+  case $1 in
+    --dry-run)     DRY=1 ;;
+    --heartbeat)   FORCE_HB=1 ;;
+    --unit-failed)
+      # Sans nom d'unite, on lancerait un passage periodique REEL en
+      # concurrence avec le timer : refuser.
+      [[ -n ${2:-} && $2 != -* ]] || { echo "--unit-failed exige un nom d'unite" >&2; exit 2; }
+      FAILED_UNIT=$2; shift ;;
+    *) echo "option inconnue : $1" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 notify() { # $1=priorite $2=tags $3=titre $4=corps
   if [[ $DRY == 1 ]]; then printf '[DRY] %s | %s | %s\n' "$1" "$3" "$4"; return; fi
-  [[ -z $NTFY_TOPIC ]] && { echo "NTFY_TOPIC vide" >&2; return; }
-  curl -s -o /dev/null --max-time 20 --retry 2 \
+  [[ -z $NTFY_TOPIC ]] && { echo "NTFY_TOPIC vide" >&2; return 1; }
+  # --fail : un refus HTTP (429, 5xx) rend un code d'erreur, pour que le
+  # battement de coeur sache qu'il doit retenter. 15 s x 2 essais au plus :
+  # plusieurs envois dans un meme passage restent sous TimeoutStartSec=120,
+  # sinon le service serait tue avant d'enregistrer l'etat.
+  curl -sf -o /dev/null --max-time 15 --retry 1 \
     -H "Title: $3" -H "Priority: $1" -H "Tags: $2" \
     -d "$4" "$NTFY_URL/$NTFY_TOPIC"
 }
 
 ISSUES=()   # "CLE<TAB>grace<TAB>message"
 add() { ISSUES+=("$1	$2	$3"); }
+
+# ── Mode OnFailure= : une unite surveillee vient d'echouer ─────────────────
+# Lance par homelab-notify@<unite>.service. systemd transmet MONITOR_* a
+# l'unite declenchee (systemd >= 251) ; a defaut (lancement manuel), on
+# retombe sur les dernieres lignes du journal de l'unite. L'etat d'alerte
+# n'est ni lu ni modifie : ce mode peut tourner en meme temps que le passage
+# periodique.
+if [[ -n $FAILED_UNIT ]]; then
+  inv=${MONITOR_INVOCATION_ID:-}
+  if [[ -n $inv ]]; then
+    logs=$(journalctl --no-pager -o cat _SYSTEMD_INVOCATION_ID="$inv" + INVOCATION_ID="$inv" 2>/dev/null | tail -n 12)
+  else
+    logs=$(journalctl --no-pager -o cat -u "$FAILED_UNIT" -n 12 2>/dev/null)
+  fi
+  notify urgent rotating_light "Echec : $FAILED_UNIT" \
+"Resultat : ${MONITOR_SERVICE_RESULT:-inconnu} (${MONITOR_EXIT_CODE:-?} ${MONITOR_EXIT_STATUS:-?}).
+$(cut -c1-200 <<<"$logs")
+Detail : journalctl -u $FAILED_UNIT -n 50"
+  exit
+fi
 
 # ── 1. Horloge — la cause racine de la panne des 19 jours ──────────────────
 if [[ $(timedatectl show -p NTPSynchronized --value 2>/dev/null) != yes ]]; then
@@ -72,6 +120,15 @@ else
         -o custom-columns='N:.metadata.name,S:.status.sync.status,H:.status.health.status' 2>/dev/null \
         | awk 'NR>0 && ($2!="Synced"||$3!="Healthy"){printf "%s(%s/%s) ",$1,$2,$3}')
   [[ -n $bad ]] && add ARGOCD 3600 "App(s) ArgoCD dérivée(s) depuis >1 h : $bad"
+
+  # ── 14. argocd-image-updater ───────────────────────────────────────────
+  # Un echec d'ecriture Git (deploy key revoquee, known_hosts, secret mal
+  # forme) laisse toutes les apps Synced/Healthy : seule la condition Error de
+  # la CR ImageUpdater le montre. 1 h de grace : un 429 du registre passe seul.
+  bad=$(kubectl --request-timeout=20s get imageupdaters.argocd-image-updater.argoproj.io -n argocd \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"|"}{.status.conditions[?(@.type=="Error")].status}{"|"}{.status.conditions[?(@.type=="Error")].message}{"\n"}{end}' 2>/dev/null \
+        | awk -F'|' '$2=="True"{printf "%s(%s) ",$1,$3}')
+  [[ -n $bad ]] && add IMGUPD 3600 "argocd-image-updater en erreur depuis >1 h : $bad— ecriture Git (cle SSH, deploy key) ou registre. Voir : kubectl logs -n argocd deploy/argocd-image-updater-controller --since=1h | grep -i error"
 fi
 
 # ── 7. Disque ─────────────────────────────────────────────────────────────
@@ -124,6 +181,46 @@ else
   (( age > 129600 )) && add BACKUP 0 "Derniere sauvegarde il y a $(( age / 3600 )) h (attendu : quotidienne a 03:00)."
 fi
 
+# ── 12. Sauvegarde coherente des bases (homelab-db-backup, 02:30) ──────────
+# Complement de OnFailure= sur homelab-db-backup.service : un timer desactive
+# ou une machine eteinte a 02:30 n'echouent pas, ils ne font rien. Seul l'age
+# du dernier fichier produit le voit. Le seuil de 36 h tient lieu de grace.
+if [[ ! -x $DB_BACKUP_DIR ]] && (( EUID != 0 )); then
+  dbage="illisible sans root"           # --dry-run lance hors root
+else
+  dbnewest=$(find "$DB_BACKUP_DIR" -maxdepth 1 -type f -name 'k3s-state-*.db.gz' \
+             -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
+  if [[ -z ${dbnewest:-} ]]; then
+    dbage="aucune"
+    add DBBACKUP 0 "Aucune sauvegarde k3s-state-*.db.gz dans $DB_BACKUP_DIR : le datastore k3s (etat du cluster + secrets) n'est plus sauvegarde."
+  else
+    dbage_s=$(( NOW - ${dbnewest%.*} ))
+    dbage="il y a $(( dbage_s / 3600 )) h"
+    (( dbage_s > DB_BACKUP_MAX_AGE )) && add DBBACKUP 0 "Derniere sauvegarde du datastore k3s ${dbage} (seuil $(( DB_BACKUP_MAX_AGE / 3600 )) h, attendu : quotidienne a 02:30). Voir : systemctl list-timers homelab-db-backup.timer ; journalctl -u homelab-db-backup -n 30"
+  fi
+fi
+
+# ── 13. Pare-feu hote (homelab-fw.service) ────────────────────────────────
+# Sa disparition (nft flush ruleset, echec au boot, service arrete) ne casse
+# rien de visible : tout marche, tout est simplement expose. Lire les regles
+# exige root : en --dry-run sous un autre utilisateur, le controle est saute.
+# Sortie lue d'abord dans une variable : avec pipefail, "nft | grep -q" echoue
+# quand grep sort au premier resultat et que nft prend un SIGPIPE (constate).
+if (( EUID == 0 )); then
+  fw_in=$(nft list chain inet homelab_fw input 2>/dev/null)
+  fw_fwd=$(nft list chain inet homelab_fw forward 2>/dev/null)
+  if ! grep -q 'policy drop;' <<<"$fw_in" || ! grep -q 'daddr 10.42.0.0/16 drop' <<<"$fw_fwd"; then
+    add FIREWALL 600 "Pare-feu absent ou ouvert : table nftables inet homelab_fw introuvable, chaine input plus en policy drop ou regle forward vers les pods disparue. SSH, API k8s, kubelet, Plex et la WebUI sont exposes. Remede : systemctl restart homelab-fw ; nft list table inet homelab_fw"
+  fi
+fi
+
+# ── 15. Unites homelab-* en echec ─────────────────────────────────────────
+# Rattrape un echec que personne n'a signale : homelab-notify@ lui-meme en
+# echec (ntfy injoignable au moment de l'alerte), ou une unite sans OnFailure=.
+# 1 h de grace : OnFailure= a normalement deja prevenu.
+bad=$(systemctl list-units --state=failed --plain --no-legend 'homelab-*' 2>/dev/null | awk '{printf "%s ",$1}')
+[[ -n $bad ]] && add UNITFAIL 3600 "Unite(s) systemd en echec depuis >1 h : $bad— journalctl -u <unite> -n 50, puis systemctl reset-failed <unite>"
+
 # ── Machine a etats ───────────────────────────────────────────────────────
 declare -A SEEN
 for i in "${ISSUES[@]}"; do SEEN[${i%%	*}]=$i; done
@@ -146,4 +243,27 @@ for key in "${!SEEN[@]}"; do printf '%s|%s|0\n' "$key" "$NOW" >>"$NEWSTATE"; don
 
 sort -o "$NEWSTATE" "$NEWSTATE" 2>/dev/null || true
 cp "$NEWSTATE" "$STATE"
+
+# ── Battement de coeur quotidien ──────────────────────────────────────────
+# Une sonde muette ne prouve rien : ce message quotidien rend le SILENCE
+# remarquable (Pi eteint, timer arrete, script casse, ntfy injoignable).
+# Envoye au premier passage apres HEARTBEAT_HOUR, une fois par jour ; si
+# l'envoi echoue, il est retente au passage suivant. Jamais memorise en
+# --dry-run.
+HB_FILE="$STATE_DIR/heartbeat.last"
+today=$(date +%F)
+if (( FORCE_HB )) || { (( 10#$(date +%H) >= 10#$HEARTBEAT_HOUR )) && [[ $(cat "$HB_FILE" 2>/dev/null) != "$today" ]]; }; then
+  if (( ${#ISSUES[@]} == 0 )); then
+    hb_tag=green_heart;  hb_prio=low;     hb_title="homelab : tout va bien"
+  else
+    hb_tag=yellow_heart; hb_prio=default; hb_title="homelab : ${#ISSUES[@]} anomalie(s) en cours"
+  fi
+  up=$(cut -d. -f1 /proc/uptime)
+  hb_body="Disque / ${use}% · CPU ${t}°C · sauvegarde k3s ${dbage} · en marche depuis $(( up / 86400 )) j $(( up % 86400 / 3600 )) h"
+  (( ${#ISSUES[@]} )) && hb_body+=$'\n'"En cours : ${ISSUES[*]%%	*}"
+  hb_body+=$'\n'"Prochain message demain apres ${HEARTBEAT_HOUR} h. Pas de message = la sonde ne tourne plus."
+  if notify "$hb_prio" "$hb_tag" "$hb_title" "$hb_body" && (( ! DRY )); then
+    echo "$today" >"$HB_FILE"
+  fi
+fi
 [[ ${#ISSUES[@]} -eq 0 ]] && echo "OK — aucune anomalie" || printf 'ANOMALIES: %s\n' "${ISSUES[*]%%	*}"

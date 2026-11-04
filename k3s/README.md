@@ -55,7 +55,62 @@ de sécurité, changement de format du `Corefile` : c'est désormais à toi de s
 CoreDNS est le composant dont dépend tout le reste — à vérifier après chaque
 montée de version de k3s.
 
-## Retour arrière (2 commandes)
+## 🔢 Version de CoreDNS : montée manuelle
+
+À cause du `.skip`, k3s réécrit `coredns.yaml` à chaque démarrage **sans
+l'appliquer** : l'image CoreDNS ne suit plus k3s.
+
+| Date | k3s | CoreDNS en service | Digest de l'index multi-arch |
+|---|---|---|---|
+| 2026-11-03 | v1.36.5+k3s1 | 1.14.7 (était 1.14.3) | `sha256:7efd3c635b03efd68c4e8398fc45f0d993d0e9ab016f72c1cefb0fd6d01aa286` |
+
+Après chaque montée de k3s, comparer l'image voulue par k3s et celle en service :
+
+```bash
+sudo grep 'image:' /var/lib/rancher/k3s/server/manifests/coredns.yaml
+kubectl -n kube-system get deploy coredns \
+  -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+```
+
+Puis comparer tout le reste du manifeste (Deployment, RBAC, Service), **ConfigMap
+exclue**. Lecture seule : `kubectl diff` ne modifie rien.
+
+```bash
+sudo cat /var/lib/rancher/k3s/server/manifests/coredns.yaml \
+  | awk 'BEGIN{RS="\n---\n"; ORS="\n---\n"} !/kind: ConfigMap\n/' \
+  | kubectl diff -f -
+```
+
+Normalement, seules l'image et la stratégie (`maxUnavailable` 0 ici, 1 chez k3s)
+diffèrent : on monte alors **uniquement l'image**. Toute autre différence (règle
+RBAC, args, sondes) doit être reportée à la main avant le `set image`. Ne jamais
+faire `kubectl apply` de ce fichier : il contient la ConfigMap d'origine
+(`forward . /etc/resolv.conf`) et ferait repartir le DNS en clair, sans aucune
+erreur visible.
+
+```bash
+sudo k3s crictl pull docker.io/<image du manifeste k3s>
+OLD=$(kubectl -n kube-system get pod -l k8s-app=kube-dns -o name)
+kubectl -n kube-system set image deployment/coredns coredns=<image du manifeste k3s>
+kubectl -n kube-system rollout status deployment/coredns --timeout=180s
+kubectl -n kube-system wait --for=delete "$OLD" --timeout=90s
+```
+
+- Stratégie passée à `maxSurge: 1` / `maxUnavailable: 0` le 2026-11-03 : le
+  nouveau pod est prêt avant l'arrêt de l'ancien, donc pas de coupure DNS.
+  Avec la valeur de k3s (`maxUnavailable: 1`, une seule réplique), l'ancien pod
+  était tué tout de suite.
+- `revisionHistoryLimit: 0` : `kubectl rollout undo` ne marche pas. Retour
+  arrière = `set image` vers la version précédente.
+- Avant de monter, lire les notes de version (`notes/coredns-1.x.y.md` du dépôt
+  coredns) pour `forward`, `hosts`, `cache` et `kubernetes`.
+- Après, vérifier le chiffrement (section plus bas), les logs, et la résolution
+  depuis le pod qBittorrent : c'est le seul dont la sortie DNS est filtrée par
+  une NetworkPolicy.
+- Pour tester les noms courts depuis un pod, utiliser `wget` (résolveur de la
+  libc) et non le `nslookup` de busybox, qui ignore la liste `search`.
+
+## Retour arrière du DoT (2 commandes)
 
 ```bash
 sudo rm /var/lib/rancher/k3s/server/manifests/coredns.yaml.skip

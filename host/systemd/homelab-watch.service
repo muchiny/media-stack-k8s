@@ -1,0 +1,13 @@
+[Unit]
+Description=Sonde de supervision homelab (pods, ArgoCD, horloge, disque, temperature)
+Documentation=man:homelab-watch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/homelab-watch
+# Volontairement PAS de dependance a k3s.service : la sonde doit pouvoir
+# alerter precisement quand k3s est mort.
+Nice=10
+TimeoutStartSec=120

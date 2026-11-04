@@ -1,0 +1,18 @@
+[Unit]
+Description=Pare-feu hote (table nftables dediee, separee de celles de k3s)
+Documentation=file:///etc/nftables.d/homelab-fw.nft
+After=network-pre.target
+Wants=network-pre.target
+Before=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/homelab-fw.nft
+ExecReload=/usr/sbin/nft -f /etc/nftables.d/homelab-fw.nft
+ExecStop=/usr/sbin/nft delete table inet homelab_fw
+# ATTENTION : ne jamais utiliser "flush ruleset" ici, cela detruirait les
+# tables nat/filter/mangle de k3s et couperait tout le reseau du cluster.
+
+[Install]
+WantedBy=multi-user.target

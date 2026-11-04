@@ -34,3 +34,6 @@ secrets/
 # Temporary files
 *.tmp
 *.log
+
+# Configuration hote reelle (sujet ntfy = secret) : seul le modele .example entre
+host/**/homelab-watch.conf

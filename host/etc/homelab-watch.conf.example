@@ -1,0 +1,10 @@
+# Modele de /etc/homelab-watch.conf (root:root, mode 600).
+# La VRAIE configuration n'est jamais versionnee : le sujet ntfy fait office
+# de mot de passe (quiconque le connait lit et publie les alertes).
+NTFY_URL=https://ntfy.sh
+NTFY_TOPIC=A-REMPLACER
+REMINDER=21600          # rappel d'une anomalie persistante, en secondes (6 h)
+DISK_MAX=90             # % d'occupation de /
+TEMP_MAX=80             # °C, ce Pi n'a pas de ventilateur
+#HEARTBEAT_HOUR=9       # heure locale du message quotidien « tout va bien »
+#DB_BACKUP_MAX_AGE=129600   # age max de la derniere copie k3s-state (36 h)

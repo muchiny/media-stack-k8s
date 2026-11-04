@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# homelab-db-backup — sauvegarde COHERENTE des bases SQLite critiques.
+#
+# Pourquoi separe du CronJob Kubernetes :
+#   1. Le CronJob copie /home/muchini/media-data/config a chaud avec tar. Sur une
+#      base SQLite en cours d'ecriture (Plex ecrit en permanence), ca produit une
+#      copie dechiree, parfois irrecuperable. `sqlite3 .backup` utilise l'API de
+#      sauvegarde en ligne : instantane coherent, WAL compris, sans arreter Plex.
+#   2. Le datastore k3s (state.db) n'etait sauvegarde NULLE PART. Il contient
+#      tout l'etat du cluster et tous les secrets. Le CronJob ne peut pas le
+#      lire : il tourne DANS le cluster qu'il devrait proteger.
+#   3. Un CronJob ne s'execute pas si le cluster est a terre. Une sauvegarde doit
+#      survivre a la panne qu'elle est censee couvrir.
+
+set -uo pipefail
+
+DEST="${DEST:-/home/muchini/backups/db}"
+RETENTION_DAYS="${RETENTION_DAYS:-14}"
+STAMP=$(date +%Y%m%d-%H%M%S)
+mkdir -p "$DEST"
+
+rc=0
+
+# Verification de la copie. integrity_check est le controle de reference, mais
+# il echoue sur les bases Plex : Plex embarque son propre SQLite avec des
+# collations maison ("unknown tokenizer: collating") que le sqlite3 de Debian ne
+# connait pas. On retombe alors sur des controles independants des collations —
+# entete, nombre de pages, nombre de tables — qui suffisent a detecter une copie
+# tronquee ou dechiree.
+verify() { # $1=fichier
+  local f=$1
+  [[ $(head -c 15 "$f" 2>/dev/null) == "SQLite format 3" ]] || return 1
+  if sqlite3 "$f" 'PRAGMA integrity_check;' 2>/dev/null | grep -qx ok; then return 0; fi
+  local pages tables
+  pages=$(sqlite3 "$f" 'PRAGMA page_count;' 2>/dev/null)
+  tables=$(sqlite3 "$f" "SELECT count(*) FROM sqlite_master WHERE type='table';" 2>/dev/null)
+  [[ ${pages:-0} -gt 0 && ${tables:-0} -gt 0 ]]
+}
+
+save() { # $1=libelle  $2=chemin de la base
+  local name=$1 src=$2 out="$DEST/$1-$STAMP.db"
+  if [[ ! -f $src ]]; then echo "  IGNORE  $name (introuvable)"; return; fi
+  # .backup utilise l'API de sauvegarde en ligne : instantane coherent d'une
+  # base VIVANTE, sans verrou exclusif ni arret du service.
+  if sqlite3 -readonly "$src" ".backup '$out'" 2>/dev/null && verify "$out"; then
+    gzip -f "$out"
+    echo "  OK      $name -> $(basename "$out").gz ($(du -h "$out.gz" | cut -f1))"
+  else
+    echo "  ECHEC   $name : copie invalide, jetee"; rm -f "$out"; rc=1
+  fi
+}
+
+echo "Sauvegarde des bases — $STAMP"
+
+# Datastore k3s : etat complet du cluster + secrets
+save k3s-state /var/lib/rancher/k3s/server/db/state.db
+
+# Bases Plex : bibliotheque et vignettes
+P="/home/muchini/media-data/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases"
+save plex-library "$P/com.plexapp.plugins.library.db"
+save plex-blobs   "$P/com.plexapp.plugins.library.blobs.db"
+
+# Rotation PAR DATE, pas par nombre : une execution manuelle ne chasse donc
+# aucune sauvegarde quotidienne de la fenetre.
+deleted=$(find "$DEST" -maxdepth 1 -name '*.db.gz' -mtime +"$RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
+echo "Rotation : $deleted archive(s) de plus de ${RETENTION_DAYS} j supprimee(s)"
+echo "Total sur disque : $(du -sh "$DEST" 2>/dev/null | cut -f1)"
+exit $rc

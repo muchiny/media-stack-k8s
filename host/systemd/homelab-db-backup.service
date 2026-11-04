@@ -1,0 +1,13 @@
+[Unit]
+Description=Sauvegarde coherente des bases SQLite (datastore k3s + Plex)
+Documentation=file:///usr/local/bin/homelab-db-backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/homelab-db-backup
+# Volontairement PAS de dependance a k3s : state.db doit pouvoir etre sauvegarde
+# meme quand le cluster est a terre -- c'est precisement la qu'on en a besoin.
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=600

@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# homelab-watch — sonde de supervision minimale pour le Pi 5 "server".
+#
+# Pourquoi en systemd et NON en CronJob Kubernetes :
+# la panne du 2026-07-19 avait fige le kubelet. Un CronJob n'aurait jamais
+# demarre et aucune alerte ne serait partie. Une sonde doit etre EXTERIEURE
+# a ce qu'elle surveille.
+#
+# Machine a etats anti-spam : une anomalie doit persister GRACE secondes avant
+# d'alerter, puis rappel toutes les REMINDER secondes, puis message de
+# retablissement quand elle disparait.
+
+set -uo pipefail
+
+CONF="${CONF:-/etc/homelab-watch.conf}"
+STATE_DIR="${STATE_DIR:-/var/lib/homelab-watch}"
+STATE="$STATE_DIR/alerts.state"
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+# shellcheck source=/dev/null
+[[ -r $CONF ]] && source "$CONF"
+NTFY_URL="${NTFY_URL:-https://ntfy.sh}"
+NTFY_TOPIC="${NTFY_TOPIC:-}"
+REMINDER="${REMINDER:-21600}"     # 6 h
+DISK_MAX="${DISK_MAX:-90}"        # %
+TEMP_MAX="${TEMP_MAX:-80}"        # °C
+
+NOW=$(date +%s)
+mkdir -p "$STATE_DIR"; touch "$STATE"
+NEWSTATE=$(mktemp); trap 'rm -f "$NEWSTATE"' EXIT
+
+DRY=0; [[ ${1:-} == --dry-run ]] && DRY=1
+
+notify() { # $1=priorite $2=tags $3=titre $4=corps
+  if [[ $DRY == 1 ]]; then printf '[DRY] %s | %s | %s\n' "$1" "$3" "$4"; return; fi
+  [[ -z $NTFY_TOPIC ]] && { echo "NTFY_TOPIC vide" >&2; return; }
+  curl -s -o /dev/null --max-time 20 --retry 2 \
+    -H "Title: $3" -H "Priority: $1" -H "Tags: $2" \
+    -d "$4" "$NTFY_URL/$NTFY_TOPIC"
+}
+
+ISSUES=()   # "CLE<TAB>grace<TAB>message"
+add() { ISSUES+=("$1	$2	$3"); }
+
+# ── 1. Horloge — la cause racine de la panne des 19 jours ──────────────────
+if [[ $(timedatectl show -p NTPSynchronized --value 2>/dev/null) != yes ]]; then
+  add CLOCK 900 "Horloge non synchronisee (NTP). Risque de rejeu de seconde murale au prochain boot."
+fi
+
+# ── 2. Le service k3s lui-meme ────────────────────────────────────────────
+if ! systemctl is-active --quiet k3s; then
+  add K3S 300 "Le service k3s n'est pas actif."
+else
+  # ── 3. La signature EXACTE de la panne de juillet ───────────────────────
+  n=$(journalctl -u k3s --since "-20 min" --no-pager 2>/dev/null | grep -c 'is reserved for')
+  if (( n > 5 )); then
+    add CRILOOP 600 "Boucle CRI 'failed to reserve container name' : $n occurrences en 20 min. C'est la panne du 19/07. Remede : k3s crictl rm <id du conteneur EXITED>."
+  fi
+
+  # ── 4. Noeuds ──────────────────────────────────────────────────────────
+  bad=$(kubectl get nodes --no-headers 2>/dev/null | awk '$2!="Ready"{printf "%s(%s) ",$1,$2}')
+  [[ -n $bad ]] && add NODE 300 "Noeud non Ready : $bad"
+
+  # ── 5. Pods ────────────────────────────────────────────────────────────
+  bad=$(kubectl get pods -A --no-headers 2>/dev/null | awk '
+    $4=="Completed"||$4=="Succeeded"{next}
+    {split($3,r,"/"); if (r[1]!=r[2] || $4!="Running") printf "%s/%s(%s) ",$1,$2,$4}')
+  [[ -n $bad ]] && add POD 900 "Pod(s) non Ready depuis >15 min : $bad"
+
+  # ── 6. ArgoCD ──────────────────────────────────────────────────────────
+  bad=$(kubectl get applications -n argocd --no-headers \
+        -o custom-columns='N:.metadata.name,S:.status.sync.status,H:.status.health.status' 2>/dev/null \
+        | awk 'NR>0 && ($2!="Synced"||$3!="Healthy"){printf "%s(%s/%s) ",$1,$2,$3}')
+  [[ -n $bad ]] && add ARGOCD 3600 "App(s) ArgoCD dérivée(s) depuis >1 h : $bad"
+fi
+
+# ── 7. Disque ─────────────────────────────────────────────────────────────
+use=$(df --output=pcent / | tail -1 | tr -dc '0-9')
+(( use > DISK_MAX )) && add DISK 900 "Disque / a ${use}% (seuil ${DISK_MAX}%)."
+
+# ── 8. Temperature — pas de ventilateur sur ce Pi ──────────────────────────
+t=$(( $(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0) / 1000 ))
+(( t > TEMP_MAX )) && add TEMP 900 "CPU a ${t}°C (seuil ${TEMP_MAX}°C). Aucun ventilateur sur cette machine."
+
+# ── 11. Resolution DNS du cluster ─────────────────────────────────────────
+# Depuis le 2026-08-09, CoreDNS forwarde en DNS-over-TLS vers Cloudflare et
+# n'est PLUS gere par k3s (coredns.yaml.skip). Deux consequences : si le DoT
+# devient injoignable toute la resolution externe tombe, et plus aucune
+# reconciliation automatique ne repare le Corefile. Ca se surveille.
+if command -v nslookup >/dev/null 2>&1; then
+  if ! timeout 8 nslookup kubernetes.default.svc.cluster.local 10.43.0.10 >/dev/null 2>&1; then
+    add DNSINT 600 "Le DNS du cluster (10.43.0.10) ne resout plus les noms internes."
+  elif ! timeout 8 nslookup github.com 10.43.0.10 >/dev/null 2>&1; then
+    add DNSEXT 600 "Le DNS du cluster ne resout plus l'exterieur — le DNS-over-TLS vers Cloudflare (1.1.1.1:853) est probablement injoignable. Retour arriere : /etc/k3s-custom/coredns-cm-ORIGINAL.yaml"
+  fi
+fi
+
+# ── 9. Sante du NVMe ──────────────────────────────────────────────────────
+# Ce disque unique porte les donnees ET les sauvegardes : sa defaillance
+# ferait tout perdre d'un coup. Il a deja encaisse 33 arrets brutaux.
+if command -v nvme >/dev/null 2>&1 && [[ -e /dev/nvme0 ]]; then
+  s=$(nvme smart-log /dev/nvme0 2>/dev/null)
+  if [[ -n $s ]]; then
+    val() { sed -n "s/^$1[^:]*:[[:space:]]*\([0-9]\+\).*/\1/p" <<<"$s" | head -1; }
+    cw=$(val critical_warning); me=$(val media_errors)
+    pu=$(val percentage_used);  sp=$(val available_spare)
+    m=""
+    (( ${cw:-0} != 0 )) && m+="critical_warning=$cw "
+    (( ${me:-0} > 0 ))  && m+="media_errors=$me "
+    (( ${pu:-0} > 80 )) && m+="usure=${pu}% "
+    (( ${sp:-100} < 20 )) && m+="spare=${sp}% "
+    [[ -n $m ]] && add NVME 900 "Sante NVMe degradee : $m— ce disque porte les donnees ET les sauvegardes."
+  fi
+fi
+
+# ── 10. Fraicheur des sauvegardes ─────────────────────────────────────────
+# Le CronJob peut echouer en silence : ce qui compte est l'archive produite.
+newest=$(find /home/muchini/backups -maxdepth 1 -type f -name '*.tar.gz' \
+         -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
+if [[ -z ${newest:-} ]]; then
+  add BACKUP 0 "Aucune archive dans /home/muchini/backups."
+else
+  age=$(( NOW - ${newest%.*} ))
+  (( age > 129600 )) && add BACKUP 0 "Derniere sauvegarde il y a $(( age / 3600 )) h (attendu : quotidienne a 03:00)."
+fi
+
+# ── Machine a etats ───────────────────────────────────────────────────────
+declare -A SEEN
+for i in "${ISSUES[@]}"; do SEEN[${i%%	*}]=$i; done
+
+while IFS='|' read -r key first notified; do
+  [[ -z ${key:-} ]] && continue
+  if [[ -n ${SEEN[$key]:-} ]]; then
+    IFS='	' read -r _ grace msg <<<"${SEEN[$key]}"
+    if (( NOW - first >= grace )) && (( notified == 0 || NOW - notified >= REMINDER )); then
+      notify urgent warning "🔴 $key" "$msg"; notified=$NOW
+    fi
+    printf '%s|%s|%s\n' "$key" "$first" "$notified" >>"$NEWSTATE"
+    unset "SEEN[$key]"
+  elif (( notified > 0 )); then
+    notify default white_check_mark "✅ $key resolu" "L'anomalie $key a disparu apres $(( (NOW-first)/60 )) min."
+  fi
+done <"$STATE"
+
+for key in "${!SEEN[@]}"; do printf '%s|%s|0\n' "$key" "$NOW" >>"$NEWSTATE"; done
+
+sort -o "$NEWSTATE" "$NEWSTATE" 2>/dev/null || true
+cp "$NEWSTATE" "$STATE"
+[[ ${#ISSUES[@]} -eq 0 ]] && echo "OK — aucune anomalie" || printf 'ANOMALIES: %s\n' "${ISSUES[*]%%	*}"

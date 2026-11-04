@@ -8,6 +8,8 @@ hostNetwork: true
 # (/dev/dri = GPU 3D v3d + affichage vc4) et Plex ne sait transcoder en
 # materiel qu'avec Intel/NVIDIA/AMD. Plex n'ouvrait jamais /dev/dri ; ce
 # drapeau ne servait qu'a rendre le conteneur privileged (kubernetes:S6428).
+# A true, le conteneur repasse privileged et perd tout le durcissement
+# (drop ALL, allowPrivilegeEscalation: false) : privileged les annule.
 gpu:
   enabled: false
 persistence:

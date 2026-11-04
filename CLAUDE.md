@@ -197,6 +197,7 @@ flowchart LR
 | ⚠️ **DÉCISION** | Le partage qBittorrent est **activé** depuis le 2026-08-09 (`hostPort: 6881`). Le choix précédent de le bloquer a été levé volontairement. Nécessite une redirection 6881 TCP+UDP sur la box pour être effectif. |
 | ⚠️ **ATTENTION** | Aucun VPN sur qBittorrent — choix assumé. L'IP publique du domicile est donc visible dans les swarms. |
 | ⚠️ **DÉCISION** | Plex tourne **sans** `privileged` depuis le 2026-11-03 (`gpu.enabled: false`). Le Pi 5 n'a pas d'encodeur vidéo matériel utilisable par Plex : le transcodage est logiciel, `/dev/dri` n'était jamais ouvert. Ne pas réactiver sans matériel compatible (Intel/NVIDIA/AMD). |
+| ⚠️ **DÉCISION** | Plex et qBittorrent tournent en `seccompProfile: RuntimeDefault`, `allowPrivilegeEscalation: false`, `drop: ALL` + `CHOWN, KILL, SETGID, SETUID` depuis le 2026-11-04 (jeu minimal mesuré, détail dans les templates). `DAC_OVERRIDE` est **volontairement absent** : les messages « Preferences.xml: Permission denied » et « Server is unclaimed » au démarrage de Plex sont attendus et sans effet. Ne pas définir `PLEX_CLAIM`. |
 | ⚠️ **ATTENTION** | Toutes les apps ont `selfHeal: true` - les changements kubectl manuels seront annulés |
 
 ## 📂 Chemins des volumes

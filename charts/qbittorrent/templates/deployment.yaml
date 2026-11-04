@@ -26,6 +26,10 @@ spec:
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+        # Filtre seccomp par defaut de containerd. Sans lui le pod tournait
+        # en "Unconfined" (Seccomp: 0 dans /proc/<pid>/status).
+        seccompProfile:
+          type: RuntimeDefault
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -39,9 +43,21 @@ spec:
           - name: attempts
             value: "3"
       initContainers:
-        # Wait for DNS proxy service to be ready
+        # Attend que le DNS du cluster (CoreDNS) reponde
         - name: wait-for-dns
           image: "{{ .Values.initContainer.image.repository }}:{{ .Values.initContainer.image.tag }}"
+          # nslookup + sleep : ni root, ni capability, ni ecriture. 65534 =
+          # nobody de busybox (uid numerique exige par runAsNonRoot, l'image
+          # declarant root par defaut).
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             limits:
               memory: 32Mi
@@ -75,14 +91,26 @@ spec:
         - name: qbittorrent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Jeu minimal mesure le 2026-11-04 (podman, profil seccomp de
+          # containerd). L'init s6 de linuxserver tourne en root, qBittorrent
+          # tourne en abc (1000) sans aucune capability :
+          #  - CHOWN : lsiown remet /config, /downloads et /app a abc (1er
+          #    demarrage sur dossier neuf, restauration de sauvegarde)
+          #  - SETGID, SETUID : s6-setuidgid abc (setgroups/setgid/setuid) ;
+          #    sans eux qbittorrent-nox ne demarre jamais
+          #  - KILL : s6-supervise (root) doit envoyer SIGTERM a qbittorrent-nox
+          #    (uid 1000). Sans lui l'arret attend la fin du delai de grace puis
+          #    SIGKILL : donnees de reprise des torrents non sauvegardees.
           securityContext:
+            allowPrivilegeEscalation: false
             capabilities:
+              drop:
+                - ALL
               add:
                 - CHOWN
+                - KILL
                 - SETGID
                 - SETUID
-              drop:
-                - NET_RAW
           env:
             {{- range $key, $value := .Values.environment }}
             - name: {{ $key }}

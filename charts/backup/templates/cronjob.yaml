@@ -51,6 +51,8 @@ spec:
                 - -c
                 - |
                   set -e
+                  # Archives en 600 : jeton Plex, cle du certificat Plex, hash qBittorrent.
+                  umask 077
                   TIMESTAMP=$(date +%Y%m%d-%H%M%S)
                   BACKUP_FILE="{{ .Values.backup.destPath }}/media-config-${TIMESTAMP}.tar.gz"
                   echo "Starting backup at ${TIMESTAMP}"

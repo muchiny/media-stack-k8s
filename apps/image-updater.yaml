@@ -15,9 +15,16 @@ metadata:
 spec:
   # Ecriture dans Git et non via l'API ArgoCD : le depot reste la source de
   # verite, et selfHeal ne peut pas annuler la montee de version.
+  # Authentification par deploy key SSH (ecriture, ce seul depot), plus par
+  # PAT. Le secret argocd/git-creds-ssh (cree a la main, jamais versionne)
+  # porte sshPrivateKey et insecure=false : la cle d'hote est verifiee contre
+  # argocd-ssh-known-hosts-cm, monte dans /app/config/ssh.
   writeBackConfig:
-    method: "git:secret:argocd/git-creds"
+    method: "git:secret:argocd/git-creds-ssh"
     gitConfig:
+      # L'Application lit le depot public en HTTPS sans identifiants ; seule
+      # l'ecriture passe par SSH, d'ou cette URL distincte de repoURL.
+      repository: "git@github.com:muchiny/media-stack-k8s.git"
       branch: main
       writeBackTarget: "helmvalues:values.yaml"
   applicationRefs:

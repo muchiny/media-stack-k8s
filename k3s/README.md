@@ -154,7 +154,7 @@ Sa configuration est dans [`traefik-config.yaml`](traefik-config.yaml) (un
   pas de `LoadBalancer`. Le pare-feu `homelab_fw` ne les ouvre qu'au LAN.
 - **Seules les IngressRoutes de `media-stack`** sont servies, sans Ingress classique.
 - **RBAC par namespace** : Traefik ne lit les Secrets que de `kube-system` et
-  `media-stack`. Il ne peut plus lire `argocd/git-creds`.
+  `media-stack`. Il ne peut pas lire `argocd/git-creds-ssh` (deploy key d'argocd-image-updater).
 
 Modifier la configuration : éditer ce fichier, puis
 `sudo install -m 600 k3s/traefik-config.yaml /var/lib/rancher/k3s/server/manifests/`.
@@ -164,7 +164,7 @@ Vérifier :
 
 ```bash
 kubectl get helmchart,helmchartconfig -n kube-system
-kubectl auth can-i get secret/git-creds -n argocd \
+kubectl auth can-i get secret/git-creds-ssh -n argocd \
   --as=system:serviceaccount:kube-system:traefik   # → no
 curl -sk -o /dev/null -w '%{http_code}\n' --resolve plex.local:30453:192.168.1.51 \
   https://plex.local:30453/identity                # → 200

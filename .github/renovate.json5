@@ -34,7 +34,7 @@
   // Renovate must NOT touch them to avoid conflicts
   "ignoreDeps": [
     "lscr.io/linuxserver/plex",
-    "lscr.io/linuxserver/qbittorrent"
+    "ghcr.io/qbittorrent/docker-qbittorrent-nox"
   ],
 
   // ── Custom managers ───────────────────────────────────────────────────────

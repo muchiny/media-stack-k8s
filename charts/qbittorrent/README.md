@@ -32,7 +32,7 @@ graph TB
 
 | Fichier | Description |
 |---------|-------------|
-| 📄 `Chart.yaml` | Métadonnées du chart (v1.0.0, appVersion 5.1.4) |
+| 📄 `Chart.yaml` | Métadonnées du chart (v1.1.0, appVersion 5.3.0) |
 | ⚙️ `values.yaml` | Configuration par défaut |
 | 📂 `templates/` | Templates Kubernetes |
 
@@ -50,8 +50,9 @@ graph TB
 ```yaml
 # values.yaml
 image:
-  repository: lscr.io/linuxserver/qbittorrent
-  tag: "5.1.4"
+  # Image officielle de l'équipe qBittorrent (pas linuxserver)
+  repository: ghcr.io/qbittorrent/docker-qbittorrent-nox
+  tag: 5.3.0-2
 
 service:
   webui:
@@ -74,10 +75,9 @@ persistence:
 dns:
 
 environment:
-  PUID: "1000"
-  PGID: "1000"
   TZ: "Europe/Paris"
-  WEBUI_PORT: "8080"
+  QBT_LEGAL_NOTICE: confirm
+  QBT_WEBUI_PORT: "8080"
 
 nodeSelector:
   kubernetes.io/arch: arm64
@@ -93,7 +93,7 @@ flowchart TB
         end
 
         subgraph "🐳 Main Container"
-            QB[qbittorrent:5.1.4]
+            QB[docker-qbittorrent-nox:5.3.0-2<br/>uid 1000, sans capability]
         end
 
         subgraph "Volumes"
@@ -168,6 +168,8 @@ mindmap
 | 🌐 | **Redirection box requise** - 6881 TCP+UDP vers `192.168.1.51`, sinon le partage reste inopérant |
 | ⚖️ | **Ratio** - `ShareLimitAction=Stop` est défini mais **aucune limite de ratio ne l'est**, donc il ne se déclenche jamais. À régler dans la WebUI. |
 | 🔓 | **Pas de VPN** - choix assumé : l'IP publique du domicile est visible dans les swarms |
+| 🐳 | **Image officielle** (depuis le 2026-11-07) - `ghcr.io/qbittorrent/docker-qbittorrent-nox`, compilée par l'équipe qBittorrent. Tourne directement en uid 1000, sans aucune capability, rootfs en lecture seule. Remplace linuxserver, dont le binaire venait d'un tiers (`userdocs/qbittorrent-nox-static`). |
+| 📁 | **Disposition des fichiers** - l'image lance `qbittorrent-nox --profile=/config` : config dans `/config/qBittorrent/config/` (qBittorrent.conf, categories.json, rss/feeds.json…), données dans `/config/qBittorrent/data/` (BT_backup, GeoDB, rss/articles). Les journaux restent dans `/config/qBittorrent/logs` (`FileLogger\Path`). Une restauration d'une sauvegarde d'avant le 2026-11-07 (disposition linuxserver, tout à plat dans `/config/qBittorrent/`) doit être remise dans ces sous-dossiers. |
 | ⏳ | **Init container** - Attend que le DNS du cluster réponde |
 | 📡 | **NodePort** - Accessible sur `30080` (WebUI) et `30881` (torrent) |
 | 🖥️ | **arm64** - NodeSelector force le déploiement sur Raspberry Pi |

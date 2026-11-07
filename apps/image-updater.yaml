@@ -49,14 +49,20 @@ spec:
     - namePattern: qbittorrent
       images:
         - alias: qbittorrent
-          imageName: lscr.io/linuxserver/qbittorrent
+          # Image officielle : tags <qbittorrent>-<revision d'image> (5.3.0-2),
+          # libtorrent 2.1. Le tag de imageName est la contrainte semver.
+          # Pour semver, "-2" est une pre-version : la contrainte doit porter
+          # elle-meme un suffixe (-0) pour les accepter. Majeure figee a 5.
+          # Teste le 2026-11-07 (/manager test) : 5.2.0-1 -> 5.3.0-2,
+          # 5.1.4-1 -> 5.1.4-2.
+          imageName: ghcr.io/qbittorrent/docker-qbittorrent-nox:^5.0.0-0
           commonUpdateSettings:
-            # Tags immuables <qbittorrent>_v<libtorrent>-lsNNN, tries par date
-            # de build. Majeures figees (qBittorrent 5, libtorrent 2) ; ecarte
-            # libtorrentv1, unstable, beta/rc et les tags calendaires 20.xx.
-            # Plancher ls486 (meme raison que plex).
-            updateStrategy: newest-build
-            allowTags: 'regexp:^5\.[0-9]+\.[0-9]+_v2\.[0-9]+\.[0-9]+-ls(48[6-9]|49[0-9]|[5-9][0-9]{2}|[1-9][0-9]{3,})$'
+            # semver ne lit que la liste des tags, sans date de build : un 429
+            # de ghcr ne peut plus provoquer de retour arriere (plancher
+            # inutile). L'expression ecarte latest, alpha et -lt1- (libtorrent
+            # 1.2) ainsi que les anciens -lt2-.
+            updateStrategy: semver
+            allowTags: 'regexp:^5\.[0-9]+\.[0-9]+-[0-9]+$'
             platforms:
               - linux/arm64
           manifestTargets:

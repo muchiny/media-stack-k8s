@@ -91,26 +91,23 @@ spec:
         - name: qbittorrent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # Jeu minimal mesure le 2026-11-04 (podman, profil seccomp de
-          # containerd). L'init s6 de linuxserver tourne en root, qBittorrent
-          # tourne en abc (1000) sans aucune capability :
-          #  - CHOWN : lsiown remet /config, /downloads et /app a abc (1er
-          #    demarrage sur dossier neuf, restauration de sauvegarde)
-          #  - SETGID, SETUID : s6-setuidgid abc (setgroups/setgid/setuid) ;
-          #    sans eux qbittorrent-nox ne demarre jamais
-          #  - KILL : s6-supervise (root) doit envoyer SIGTERM a qbittorrent-nox
-          #    (uid 1000). Sans lui l'arret attend la fin du delai de grace puis
-          #    SIGKILL : donnees de reprise des torrents non sauvegardees.
+          # Image officielle (depuis le 2026-11-07, avant : linuxserver) : pas
+          # d'init s6. Lance hors root, /entrypoint.sh execute directement
+          # qbittorrent-nox (sous tini) : ni chown, ni changement d'uid, donc
+          # aucune capability. Verifie sous podman (uid 1000, cap-drop all,
+          # rootfs en lecture seule, profil --profile=/config) : 5/5 torrents
+          # restaures, arret propre avec sauvegarde des donnees de reprise (tini
+          # relaie SIGTERM au meme uid : KILL n'est plus necessaire).
+          # 1000 = qbtUser de l'image = muchini, proprietaire des hostPath.
           securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
-              add:
-                - CHOWN
-                - KILL
-                - SETGID
-                - SETUID
           env:
             {{- range $key, $value := .Values.environment }}
             - name: {{ $key }}
@@ -141,8 +138,6 @@ spec:
               mountPath: {{ .Values.persistence.downloads.mountPath }}
             - name: media
               mountPath: {{ .Values.persistence.media.mountPath }}
-            - name: session
-              mountPath: {{ .Values.persistence.session.mountPath }}
           lifecycle:
             preStop:
               exec:
@@ -183,7 +178,3 @@ spec:
           hostPath:
             path: {{ .Values.persistence.media.hostPath }}
             type: Directory
-        - name: session
-          hostPath:
-            path: {{ .Values.persistence.session.hostPath }}
-            type: DirectoryOrCreate

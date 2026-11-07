@@ -1,7 +1,11 @@
 replicaCount: 1
 image:
-  repository: lscr.io/linuxserver/qbittorrent
-  tag: 5.3.0_v2.1.2-ls486
+  # Image officielle de l'equipe qBittorrent, compilee depuis les sources
+  # (github.com/qbittorrent/docker-qbittorrent-nox). Meme digest que
+  # qbittorrentofficial/qbittorrent-nox sur Docker Hub ; ghcr.io evite le
+  # quota anonyme de Docker Hub, partage avec les autres pulls du noeud.
+  repository: ghcr.io/qbittorrent/docker-qbittorrent-nox
+  tag: 5.3.0-2
   pullPolicy: IfNotPresent
 initContainer:
   image:
@@ -26,14 +30,14 @@ persistence:
   media:
     hostPath: /media
     mountPath: /media
-  session:
-    hostPath: /home/muchini/media-data/config/qbittorrent/session
-    mountPath: /config/qBittorrent/data
+# Lus par /entrypoint.sh de l'image officielle. PUID/PGID n'y servent qu'en
+# root : le conteneur tourne directement en 1000 (cf. deployment.yaml).
 environment:
-  PUID: "1000"
-  PGID: "1000"
   TZ: Europe/Paris
-  WEBUI_PORT: "8080"
+  # Accord de la notice legale : deja dans qBittorrent.conf, mais sans lui
+  # une config neuve (restauration ratee) empecherait le demarrage.
+  QBT_LEGAL_NOTICE: confirm
+  QBT_WEBUI_PORT: "8080"
 resources:
   limits:
     memory: 1Gi

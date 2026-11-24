@@ -5,7 +5,7 @@ image:
   # qbittorrentofficial/qbittorrent-nox sur Docker Hub ; ghcr.io evite le
   # quota anonyme de Docker Hub, partage avec les autres pulls du noeud.
   repository: ghcr.io/qbittorrent/docker-qbittorrent-nox
-  tag: 5.3.0-2
+  tag: 5.3.1-1
   pullPolicy: IfNotPresent
 initContainer:
   image:
